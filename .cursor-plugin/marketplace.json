@@ -1,0 +1,8 @@
+{
+  "name": "42min",
+  "owner": "42min-us",
+  "description": "Official 42min plugins for Cursor.",
+  "plugins": [
+    "plugins/42min"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "42min",
+  "displayName": "42min",
+  "description": "Connect Cursor to your 42min account. Create and manage event types, availability, bookings, round-robin scheduling, meeting polls and routing forms without leaving the editor.",
+  "version": "0.1.0",
+  "author": "42min",
+  "license": "MIT",
+  "logo": "assets/logo.png",
+  "keywords": [
+    "scheduling",
+    "calendar",
+    "booking",
+    "meetings",
+    "availability",
+    "mcp"
+  ],
+  "rules": [
+    "rules/42min.md"
+  ],
+  "mcpServers": "mcp.json"
+}

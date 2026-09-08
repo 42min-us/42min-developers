@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  publish-gate:
+    name: Publication gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          sudo install -m755 gitleaks /usr/local/bin/gitleaks
+
+      # Defense in depth. The primary control is the identical script run by
+      # the pre-push hook, because CI runs after content has already reached
+      # GitHub and disclosure is irreversible.
+      - name: Denylist and secret scan
+        run: ./scripts/check-publish.sh
+
+  manifests:
+    name: Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            python3 -c "import json,sys; json.load(open('$f'))" \
+              || { echo "invalid JSON: $f"; fail=1; }
+          done < <(git ls-files '*.json')
+          exit $fail
+
+      - name: Manifest paths are relative and resolvable
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, sys
+
+          fail = []
+          for manifest in pathlib.Path('plugins').glob('*/.cursor-plugin/plugin.json'):
+              root = manifest.parent.parent
+              data = json.loads(manifest.read_text())
+
+              name = data.get('name', '')
+              if not name or not all(c.islower() or c.isdigit() or c in '-.' for c in name):
+                  fail.append(f'{manifest}: name must be lowercase kebab-case, got {name!r}')
+
+              # Cursor rejects absolute paths and any '..' segment.
+              refs = [data.get('logo'), data.get('mcpServers')] + list(data.get('rules') or [])
+              for ref in [r for r in refs if isinstance(r, str)]:
+                  if ref.startswith('/') or '..' in ref.split('/'):
+                      fail.append(f'{manifest}: path must be relative without "..": {ref}')
+                  elif not (root / ref).exists():
+                      fail.append(f'{manifest}: referenced file missing: {ref}')
+
+          for line in fail:
+              print(line)
+          sys.exit(1 if fail else 0)
+          PY

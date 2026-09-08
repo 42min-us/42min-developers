@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40" role="img" aria-label="42min">
+  <defs>
+    <clipPath id="body">
+      <rect x="6" y="9" width="28" height="26" rx="3"></rect>
+    </clipPath>
+  </defs>
+
+  <rect x="0" y="0" width="40" height="40" rx="8" fill="#ffffff"></rect>
+
+  <rect x="12" y="5" width="2.5" height="5" rx="1.2" fill="#1a1625"></rect>
+  <rect x="25.5" y="5" width="2.5" height="5" rx="1.2" fill="#1a1625"></rect>
+
+  <rect x="6" y="9" width="28" height="26" rx="3" fill="#fdf6ec"></rect>
+
+  <g clip-path="url(#body)">
+    <rect x="6" y="9" width="28" height="9" fill="#f25c2c"></rect>
+  </g>
+
+  <line x1="6" y1="18" x2="34" y2="18" stroke="#1a1625" stroke-width="1.6"></line>
+
+  <text x="20" y="31" text-anchor="middle" fill="#1a1625"
+        font-family="Outfit, 'Trebuchet MS', 'DejaVu Sans', sans-serif"
+        font-size="14" font-weight="900" letter-spacing="-0.5">42</text>
+
+  <rect x="6" y="9" width="28" height="26" rx="3" fill="none" stroke="#1a1625" stroke-width="2"></rect>
+</svg>

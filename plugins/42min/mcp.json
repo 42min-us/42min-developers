@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "42min": {
+      "type": "remote",
+      "url": "https://api.42min.us/mcp"
+    }
+  }
+}

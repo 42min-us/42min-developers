@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Install once:  git config core.hooksPath .githooks
+exec "$(git rev-parse --show-toplevel)/scripts/check-publish.sh"

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/42min-us/42min-developers/blob/main/SECURITY.md
+    about: Do not open a public issue. Email plus@42min.us instead.
+  - name: API documentation
+    url: https://42min.us/help/api
+    about: Reference documentation for the public API and MCP server.

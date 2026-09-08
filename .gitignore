@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Never publishable. Also enforced by scripts/check-publish.sh, which is the
+# real gate; this only keeps them out of the working tree by accident.
+.env
+.env.*
+*.pem
+*.key

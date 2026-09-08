@@ -1,0 +1,15 @@
+# Review is required from these owners before a merge to main.
+# Branch protection must have "Require review from Code Owners" enabled;
+# a CODEOWNERS file alone only requests review, it does not enforce it.
+#
+# Owners are listed as individuals rather than a team: a team reference that
+# does not exist matches nobody and silently protects nothing. Switch to
+# @42min-us/maintainers once that team is created and populated.
+
+*                         @42min-tech
+
+# The published contract and anything shipped to a marketplace get a
+# second look regardless of who opened the pull request.
+/openapi/                 @42min-tech
+/plugins/                 @42min-tech
+/scripts/check-publish.sh @42min-tech
