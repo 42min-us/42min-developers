@@ -26,6 +26,40 @@ jobs:
       - name: Denylist and secret scan
         run: ./scripts/check-publish.sh
 
+  openapi:
+    name: OpenAPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # The contract tests that check this file against the running API live in
+      # the private repository: they boot the API against a real database. What
+      # is enforceable here is that the document is well-formed, which is not
+      # nothing. Two real bugs in this file were an unquoted comma inside a YAML
+      # flow mapping silently becoming a second key, exactly what this catches.
+      - name: Specification is valid OpenAPI 3.1
+        run: npx --yes @redocly/cli@latest lint openapi/42min.v1.yaml
+
+  webhook-example:
+    name: Webhook example
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # No dependencies by design, so there is nothing to install. If the
+      # signature verification we publish ever stops being correct, this fails.
+      - name: Signature verification tests
+        run: node --test
+        working-directory: examples/webhook-receiver
+
   manifests:
     name: Manifests
     runs-on: ubuntu-latest

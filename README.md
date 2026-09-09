@@ -27,11 +27,16 @@ compliant client discovers everything else on its own.
 The OpenAPI 3.1 description of the public REST API, for generating clients, importing into
 Postman or Bruno, and feeding to a coding agent.
 
-It is hand-written and checked against the running API by a contract test suite that
+It is hand-written, and checked against the running API by a contract test suite that
 exercises every documented endpoint and validates the live response, headers and error
 bodies against these schemas. That is how the first draft's seven mistakes were found,
 including two that would have broken every generated client on every booking write. A
-route-coverage check also fails if an endpoint exists but is undocumented, or the reverse.
+route-coverage check fails the build if an endpoint exists but is undocumented, or the
+reverse.
+
+Those checks run in our private repository, because they boot the API against a real
+database and cannot run here. What CI in *this* repository enforces is that the file is a
+valid OpenAPI 3.1 document, so a malformed spec never reaches you.
 
 If you find a place where this file and the API disagree, the file is probably wrong:
 please [open an issue](https://github.com/42min-us/42min-developers/issues/new?labels=specification).
@@ -59,8 +64,10 @@ Full detail: [Authentication](https://42min.us/help/api/authentication).
   creates a second booking.
 - **`PATCH /v1/bookings/{uid}` uses ETags.** Read the ETag, send it back as `If-Match`, and
   a concurrent edit fails loudly instead of silently overwriting.
-- **There is no sandbox yet.** Write operations against production send real email and
-  create real calendar events. Test on event types you own, and clean up after yourself.
+- **There is no test environment yet.** Write operations act on production: they send
+  real email and create real calendar events. Test on event types you own, and clean up
+  after yourself. (Our help pages use "sandbox" for something else, the per-credential
+  isolation of webhook subscriptions.)
 - **Ignore unknown response fields.** We add fields without notice; see
   [CHANGELOG.md](CHANGELOG.md) for the full versioning policy and the six-month
   deprecation guarantee.
