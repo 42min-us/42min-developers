@@ -22,20 +22,26 @@ Any MCP client can connect without this plugin, by pointing at
 `https://api.42min.us/mcp`. The server publishes OAuth protected-resource metadata, so a
 compliant client discovers everything else on its own.
 
-### `openapi/` — coming soon
+### `openapi/42min.v1.yaml`
 
-An OpenAPI 3.1 description of the public REST API, for generating clients, importing into
-Postman or Bruno, and feeding to a coding agent. It is in progress and not yet published
-here.
+The OpenAPI 3.1 description of the public REST API, for generating clients, importing into
+Postman or Bruno, and feeding to a coding agent.
 
-Until it lands, the full REST reference — every `/v1` endpoint with its request and
-response — lives at [42min.us/help/api](https://42min.us/help/api).
+It is hand-written and checked against the running API by a contract test suite that
+exercises every documented endpoint and validates the live response, headers and error
+bodies against these schemas. That is how the first draft's seven mistakes were found,
+including two that would have broken every generated client on every booking write. A
+route-coverage check also fails if an endpoint exists but is undocumented, or the reverse.
 
-### `examples/` — coming soon
+If you find a place where this file and the API disagree, the file is probably wrong:
+please [open an issue](https://github.com/42min-us/42min-developers/issues/new?labels=specification).
 
-Small working programs, starting with a webhook receiver. Signature verification is where
-integrations most often break: the usual cause is verifying a re-serialized body rather
-than the raw bytes. These examples are in progress and not yet published here.
+### `examples/webhook-receiver`
+
+A working receiver in about 120 lines with no dependencies, and ten tests for
+`verify.js` alone. Signature verification is where integrations break: the usual cause is
+verifying a re-serialized body rather than the raw bytes, which no amount of reading the
+docs makes obvious. Copy `verify.js` and move on.
 
 ## Authentication in one paragraph
 
@@ -50,14 +56,14 @@ Full detail: [Authentication](https://42min.us/help/api/authentication).
 ## Things worth knowing before you build
 
 - **Mutating booking calls accept `Idempotency-Key`.** Retry with the same key. A new key
-creates a second booking.
+  creates a second booking.
 - **`PATCH /v1/bookings/{uid}` uses ETags.** Read the ETag, send it back as `If-Match`, and
-a concurrent edit fails loudly instead of silently overwriting.
+  a concurrent edit fails loudly instead of silently overwriting.
 - **There is no sandbox yet.** Write operations against production send real email and
-create real calendar events. Test on event types you own, and clean up after yourself.
+  create real calendar events. Test on event types you own, and clean up after yourself.
 - **Ignore unknown response fields.** We add fields without notice; see
-[CHANGELOG.md](CHANGELOG.md) for the full versioning policy and the six-month
-deprecation guarantee.
+  [CHANGELOG.md](CHANGELOG.md) for the full versioning policy and the six-month
+  deprecation guarantee.
 
 ## Support
 
