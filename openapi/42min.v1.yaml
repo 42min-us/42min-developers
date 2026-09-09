@@ -63,6 +63,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data:
                     type: object
@@ -83,10 +84,16 @@ paths:
       responses:
         "200":
           description: The connected identity.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/Me" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -122,10 +129,16 @@ paths:
       responses:
         "200":
           description: A page of event types.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data:
                     type: array
@@ -153,10 +166,16 @@ paths:
       responses:
         "200":
           description: Full event type detail.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/EventTypeDetail" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -207,10 +226,16 @@ paths:
       responses:
         "200":
           description: Computed availability.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/SlotList" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -255,10 +280,16 @@ paths:
       responses:
         "200":
           description: Whether the slot can be booked.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/SlotCheck" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -317,10 +348,16 @@ paths:
       responses:
         "200":
           description: A page of bookings.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data:
                     type: array
@@ -355,10 +392,16 @@ paths:
       responses:
         "201":
           description: Booking created.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/Booking" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -369,6 +412,7 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
         "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/SlotLockTimeout" }
 
   /v1/bookings/{uid}:
     parameters:
@@ -387,6 +431,10 @@ paths:
         "200":
           description: The booking, including invitee form answers.
           headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
             ETag:
               description: Opaque version token for optimistic locking.
               schema: { type: string }
@@ -394,6 +442,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/Booking" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -430,6 +479,10 @@ paths:
         "200":
           description: Updated booking.
           headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
             ETag:
               description: The new version token.
               schema: { type: string }
@@ -437,6 +490,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/Booking" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -483,10 +537,16 @@ paths:
       responses:
         "200":
           description: Canceled.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/Booking" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -526,10 +586,16 @@ paths:
       responses:
         "200":
           description: Rescheduled.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/Booking" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -539,6 +605,7 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/UnprocessableEntity" }
         "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/SlotLockTimeout" }
 
   /v1/webhooks:
     get:
@@ -554,10 +621,16 @@ paths:
       responses:
         "200":
           description: Your subscriptions.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data:
                     type: array
@@ -600,10 +673,16 @@ paths:
       responses:
         "201":
           description: Created. Contains the signing secret.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/WebhookWithSecret" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -625,10 +704,16 @@ paths:
       responses:
         "200":
           description: The subscription.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/Webhook" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -660,10 +745,16 @@ paths:
       responses:
         "200":
           description: Updated.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/Webhook" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -689,6 +780,9 @@ paths:
         "204":
           description: Deleted. No response body, so there is no envelope here.
           headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
             X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404":
@@ -716,10 +810,16 @@ paths:
       responses:
         "200":
           description: New signing secret.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/WebhookWithSecret" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -741,10 +841,16 @@ paths:
       responses:
         "200":
           description: Test dispatched.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data: { $ref: "#/components/schemas/WebhookDelivery" }
                   meta: { $ref: "#/components/schemas/Meta" }
@@ -768,10 +874,16 @@ paths:
       responses:
         "200":
           description: Recent delivery attempts, newest first.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
           content:
             application/json:
               schema:
                 type: object
+                required: [data, meta]
                 properties:
                   data:
                     type: array
@@ -786,56 +898,56 @@ webhooks:
     post:
       operationId: onBookingCreated
       summary: A booking was created
-      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      requestBody: { $ref: "#/components/requestBodies/BookingWebhook" }
       responses:
         "2XX": { description: Acknowledged. Any 2xx stops retries. }
   booking.updated:
     post:
       operationId: onBookingUpdated
       summary: A booking was modified
-      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      requestBody: { $ref: "#/components/requestBodies/BookingWebhook" }
       responses:
         "2XX": { description: Acknowledged. }
   booking.canceled:
     post:
       operationId: onBookingCanceled
       summary: A booking was canceled
-      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      requestBody: { $ref: "#/components/requestBodies/BookingWebhook" }
       responses:
         "2XX": { description: Acknowledged. }
   booking.rescheduled:
     post:
       operationId: onBookingRescheduled
       summary: A booking moved to a new time
-      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      requestBody: { $ref: "#/components/requestBodies/BookingWebhook" }
       responses:
         "2XX": { description: Acknowledged. }
   booking.no_show:
     post:
       operationId: onBookingNoShow
       summary: A booking was marked as a no-show
-      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      requestBody: { $ref: "#/components/requestBodies/BookingWebhook" }
       responses:
         "2XX": { description: Acknowledged. }
   event_type.updated:
     post:
       operationId: onEventTypeUpdated
       summary: An event type was modified
-      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      requestBody: { $ref: "#/components/requestBodies/EventTypeWebhook" }
       responses:
         "2XX": { description: Acknowledged. }
   event_type.deleted:
     post:
       operationId: onEventTypeDeleted
       summary: An event type was deleted
-      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      requestBody: { $ref: "#/components/requestBodies/EventTypeWebhook" }
       responses:
         "2XX": { description: Acknowledged. }
   routing.form_submitted:
     post:
       operationId: onRoutingFormSubmitted
       summary: A routing form was submitted
-      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      requestBody: { $ref: "#/components/requestBodies/RoutingWebhook" }
       responses:
         "2XX": { description: Acknowledged. }
 
@@ -945,39 +1057,27 @@ components:
       schema: { type: integer }
 
   requestBodies:
-    WebhookDelivery:
+    BookingWebhook:
       required: true
       description: |
-        Sent to your endpoint with these headers:
-
-        - `X-42min-Webhook-Signature: t=<unix>,v1=<hex>`: HMAC over the timestamp and
-          the raw body, using the subscription's signing secret. Verify against the raw
-          bytes, before any JSON parsing, and compare in constant time.
-        - `X-42min-Webhook-Event`: the event name
-        - `X-42min-Webhook-Id`: delivery id, stable across retries; use it to dedupe
-        - `X-42min-Webhook-Attempt`: attempt number
-
-        Respond with any 2xx to acknowledge. Anything else is retried.
+        Sent to your endpoint with the headers described under
+        `X-42min-Webhook-Signature` below. Respond with any 2xx to acknowledge;
+        anything else is retried.
       content:
         application/json:
-          schema:
-            type: object
-            description: |
-              Note this envelope uses camelCase, unlike the snake_case REST API.
-            properties:
-              id:
-                type: string
-                description: Event id, prefixed `evt_`. Distinct from the delivery id in the headers.
-              event: { $ref: "#/components/schemas/WebhookEventDotName" }
-              createdAt: { type: string, format: date-time }
-              apiVersion:
-                type: string
-                description: Payload contract version, currently `2026-04-01`.
-                examples: ["2026-04-01"]
-              data:
-                type: object
-                description: The affected resource.
-                additionalProperties: true
+          schema: { $ref: "#/components/schemas/BookingWebhookEnvelope" }
+
+    EventTypeWebhook:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/EventTypeWebhookEnvelope" }
+
+    RoutingWebhook:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/RoutingWebhookEnvelope" }
 
   responses:
     BadRequest:
@@ -1018,7 +1118,11 @@ components:
     Conflict:
       headers:
         X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
-      description: The request conflicts with current state, such as a taken slot.
+      description: |
+        The request conflicts with current state. Branch on `error.code`:
+        `slot_unavailable` (someone booked it first), `slot_in_past`,
+        `booking_in_past`, `booking_already_cancelled`, `event_type_inactive`, or
+        `version_conflict` (the `If-Match` ETag is stale).
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -1035,6 +1139,20 @@ components:
         `PATCH /v1/bookings/{uid}`, with error code `missing_if_match`.
       headers:
         X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+    SlotLockTimeout:
+      description: |
+        Could not acquire the slot lock in time (`slot_lock_timeout`). Someone else is
+        booking the same slot right now. This is transient: retry with the SAME
+        `Idempotency-Key`, honoring `Retry-After`.
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+        Retry-After:
+          description: Seconds to wait. Currently always 1.
+          schema: { type: integer }
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -1097,9 +1215,16 @@ components:
               description: Context for the error, such as the offending field. May be empty.
               additionalProperties: true
             request_id: { type: string }
+      examples:
+        - error:
+            code: "slot_unavailable"
+            message: "That time is no longer available"
+            details: {}
+            request_id: "req_01a0808c9fd8f69a474ad660eeca8b5e"
 
     Me:
       type: object
+      required: [user, organization]
       properties:
         user:
           type: object
@@ -1122,6 +1247,10 @@ components:
 
     EventType:
       type: object
+      required:
+        [id, slug, title, duration_minutes, active, scheduling_type, hosts, color,
+         buffer_before_minutes, buffer_after_minutes, minimum_notice_hours,
+         future_limit_days, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         slug: { type: string }
@@ -1186,6 +1315,7 @@ components:
 
     SlotList:
       type: object
+      required: [event_type_id, timezone, computed_at, slots]
       properties:
         event_type_id: { type: string, format: uuid }
         timezone: { type: string }
@@ -1213,6 +1343,7 @@ components:
 
     SlotCheck:
       type: object
+      required: [available]
       properties:
         available: { type: boolean }
         duration_minutes:
@@ -1229,6 +1360,9 @@ components:
 
     Booking:
       type: object
+      required:
+        [uid, version, event_type_id, status, start_at, end_at, timezone, attendees,
+         guests, calendar_sync_status, created_at, updated_at]
       properties:
         uid: { type: string }
         version:
@@ -1340,6 +1474,16 @@ components:
         utm_source: { type: string, maxLength: 255 }
         utm_medium: { type: string, maxLength: 255 }
         utm_campaign: { type: string, maxLength: 255 }
+      examples:
+        - event_type_id: "6f2a1c94-0d3b-4f7e-8a25-1c9d4b7e0f31"
+          start: "2026-09-15T14:00:00.000Z"
+          timezone: "Europe/Lisbon"
+          attendee:
+            email: "ada@example.com"
+            name: "Ada Lovelace"
+            timezone: "Europe/Lisbon"
+          metadata:
+            crm_deal_id: "D-4471"
 
     UpdateBookingRequest:
       type: object
@@ -1362,6 +1506,176 @@ components:
         attendee_name:
           type: string
           description: Truncated to 200 characters.
+
+    WebhookEnvelope:
+      type: object
+      description: |
+        Common shape of every outbound delivery. Note it is camelCase, unlike the
+        snake_case REST API, and that `id` here is the EVENT id, distinct from the
+        delivery id in the `X-42min-Webhook-Id` header (which is stable across retries
+        and is what you dedupe on).
+      required: [id, event, createdAt, apiVersion, data]
+      properties:
+        id:
+          type: string
+          description: Event id, prefixed `evt_`.
+          examples: ["evt_9f1c3b7a-2d44-4a1e-9c07-1b2f5e8a3d61"]
+        event: { $ref: "#/components/schemas/WebhookEventDotName" }
+        createdAt: { type: string, format: date-time }
+        apiVersion:
+          type: string
+          description: Payload contract version.
+          examples: ["2026-04-01"]
+
+    WebhookBooking:
+      type: object
+      description: |
+        The booking as webhooks render it. This is NOT the same shape as the REST
+        `Booking`: it is camelCase, nests differently, and carries fields the REST
+        resource does not (answers, urlParams, meetLink).
+      required:
+        [id, eventTypeId, startTime, endTime, timezone, status, inviteeName,
+         inviteeEmail, organizationId]
+      properties:
+        id: { type: string }
+        eventTypeId: { type: string, format: uuid }
+        eventTypeName: { type: [string, "null"] }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+        timezone: { type: string }
+        status: { type: string }
+        inviteeName: { type: string }
+        inviteeEmail: { type: string, format: email }
+        inviteePhone: { type: [string, "null"] }
+        guests:
+          type: array
+          items: { type: object, additionalProperties: true }
+        answers:
+          type: object
+          description: Invitee form answers keyed by question label.
+          additionalProperties: true
+        answersById:
+          type: object
+          description: The same answers keyed by question id, stable across relabelling.
+          additionalProperties: true
+        routingFormAnswers:
+          type: [object, "null"]
+          additionalProperties: true
+        urlParams:
+          type: object
+          description: |
+            Tracking and custom parameters the booking link carried, merged into one
+            map. Recognized tracking keys win over a custom key of the same name.
+          additionalProperties: true
+        location: { type: [string, "null"] }
+        meetLink:
+          type: [string, "null"]
+          description: Conferencing URL, when one was generated.
+        cancelledAt: { type: [string, "null"], format: date-time }
+        cancelledReason: { type: [string, "null"] }
+        noShowAt: { type: [string, "null"], format: date-time }
+        noShowReason: { type: [string, "null"] }
+        rescheduledAt: { type: [string, "null"], format: date-time }
+        reschedule_generation:
+          type: integer
+          description: |
+            Which move this payload describes, starting at 0. Use it to order or dedupe
+            reschedules: matching on booking id alone lets the first reschedule satisfy
+            every later one. Note the snake_case name among camelCase siblings; it is
+            fixed by the contract.
+        hostUser:
+          type: [object, "null"]
+          properties:
+            id: { type: [string, "null"] }
+            firstName: { type: [string, "null"] }
+            lastName: { type: [string, "null"] }
+            email: { type: [string, "null"] }
+        organizationId: { type: string, format: uuid }
+
+    BookingWebhookEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/WebhookEnvelope"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [booking]
+              properties:
+                booking: { $ref: "#/components/schemas/WebhookBooking" }
+                previousBooking:
+                  type: object
+                  description: "Present only on `booking.rescheduled`. Where the meeting was before."
+                  properties:
+                    startTime: { type: string, format: date-time }
+                    endTime: { type: string, format: date-time }
+                    timezone: { type: string }
+                changed_fields:
+                  type: array
+                  description: "Present only on `booking.updated`. Which fields the PATCH wrote."
+                  items: { type: string }
+      examples:
+        - id: "evt_9f1c3b7a-2d44-4a1e-9c07-1b2f5e8a3d61"
+          event: "booking.created"
+          createdAt: "2026-09-09T12:00:00.000Z"
+          apiVersion: "2026-04-01"
+          data:
+            booking:
+              id: "bk_7c1e9a2f"
+              eventTypeId: "6f2a1c94-0d3b-4f7e-8a25-1c9d4b7e0f31"
+              eventTypeName: "Intro call"
+              startTime: "2026-09-15T14:00:00.000Z"
+              endTime: "2026-09-15T14:42:00.000Z"
+              timezone: "Europe/Lisbon"
+              status: "confirmed"
+              inviteeName: "Ada Lovelace"
+              inviteeEmail: "ada@example.com"
+              reschedule_generation: 0
+              organizationId: "0b7d2e51-8c4a-4f19-9a63-2d5e7c1b4f80"
+
+    EventTypeWebhookEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/WebhookEnvelope"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [event_type]
+              properties:
+                event_type:
+                  allOf:
+                    - $ref: "#/components/schemas/EventTypeDetail"
+                  description: |
+                    The same shape `GET /v1/event-types/{idOrSlug}` returns. On
+                    `event_type.deleted` it describes the event type as it was.
+
+    RoutingWebhookEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/WebhookEnvelope"
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [response]
+              properties:
+                response:
+                  type: object
+                  required: [id, routingFormId, organizationId]
+                  properties:
+                    id: { type: string, format: uuid }
+                    routingFormId: { type: string, format: uuid }
+                    formName: { type: [string, "null"] }
+                    answers:
+                      type: object
+                      description: What the lead answered.
+                      additionalProperties: true
+                    destinationType:
+                      type: string
+                      description: Where the matched rule sent them.
+                    destinationValue: { type: [string, "null"] }
+                    organizationId: { type: string, format: uuid }
 
     WebhookEventName:
       type: string
@@ -1398,6 +1712,7 @@ components:
 
     Webhook:
       type: object
+      required: [id, url, events, status, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         url: { type: string, format: uri }
@@ -1427,6 +1742,7 @@ components:
 
     WebhookDelivery:
       type: object
+      required: [id, event, attempt, created_at]
       properties:
         id: { type: string }
         event: { $ref: "#/components/schemas/WebhookEventName" }
