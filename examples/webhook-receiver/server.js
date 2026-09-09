@@ -9,20 +9,19 @@
  * way to break signature verification is to let a body parser consume the
  * request first. Everything here works on the raw bytes.
  *
- * The order below is the whole point:
+ * The order matters and is the point of the example:
  *
- *   verify  ->  store durably  ->  acknowledge  ->  process
+ *   verify -> validate -> store durably -> acknowledge -> process
  *
- * Acknowledging before the delivery is safely written means a crash between
- * the 2xx and the work loses the event permanently: 42min has been told you
- * have it and will never retry. Processing before acknowledging means the
- * 10-second delivery timeout fires and you get retried anyway, six times, for
- * work you already did. Storing first is what lets you answer fast AND keep
- * the event.
+ * Acknowledging before the delivery is safely written loses the event if you
+ * crash in between: 42min has been told you have it and will never retry.
+ * Processing before acknowledging blows the 10-second delivery timeout, so you
+ * are retried six times for work you already did.
  *
- * `queue/` here is a directory of JSON files, which keeps the example
- * dependency-free. A real service uses its database or a job queue. What
- * matters is that the write is durable before the 2xx.
+ * `queue/` is a directory of JSON files, which keeps this dependency-free. A
+ * real service uses its database or a job queue. What matters is that the write
+ * is durable before the 2xx, that a record is only marked processed after the
+ * work succeeds, and that unprocessed records are picked up again on restart.
  */
 
 const http = require('node:http');
@@ -42,50 +41,95 @@ if (!SECRET) {
 
 fs.mkdirSync(QUEUE_DIR, { recursive: true });
 
+const SAFE_ID = /^[A-Za-z0-9_.-]{1,128}$/;
+const recordPath = (id) => path.join(QUEUE_DIR, `${id}.json`);
+
+function readRecord(id) {
+  try {
+    return JSON.parse(fs.readFileSync(recordPath(id), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Write the delivery to disk and flush it, so it survives a crash immediately
- * after we answer. Returns false if this delivery id is already stored, which
- * is how retries are deduped: X-42min-Webhook-Id is stable across attempts.
- *
- * The `wx` flag makes creation atomic, so two concurrent retries cannot both
- * decide they are the first.
+ * Create the record, or report that it already exists.
+ * `wx` makes creation atomic, so two concurrent retries cannot both win.
  */
-function storeDelivery(deliveryId, headers, rawBody) {
-  const safeId = String(deliveryId || '').replace(/[^A-Za-z0-9_.-]/g, '_') || 'unknown';
-  const file = path.join(QUEUE_DIR, `${safeId}.json`);
+function storeDelivery(id, headers, rawBody) {
   let fd;
   try {
-    fd = fs.openSync(file, 'wx');
+    fd = fs.openSync(recordPath(id), 'wx');
   } catch (err) {
-    if (err.code === 'EEXIST') return false;
+    if (err.code === 'EEXIST') return { created: false };
     throw err;
   }
   try {
     fs.writeFileSync(fd, JSON.stringify({
-      deliveryId: safeId,
+      deliveryId: id,
       event: headers['x-42min-webhook-event'],
-      attempt: headers['x-42min-webhook-attempt'],
+      attempt: headers['x-42min-webhook-attempt'] ?? null,
       receivedAt: new Date().toISOString(),
+      processedAt: null,
       body: rawBody.toString('utf8'),
     }));
-    fs.fsyncSync(fd);   // durable before we answer, not merely written
+    fs.fsyncSync(fd);   // durable BEFORE we answer, not merely written
   } finally {
     fs.closeSync(fd);
   }
-  return true;
+  return { created: true };
 }
 
-/** Record that a delivery was handled, WITHOUT removing the dedupe evidence. */
-function markProcessed(deliveryId) {
-  const safeId = String(deliveryId || '').replace(/[^A-Za-z0-9_.-]/g, '_') || 'unknown';
-  const file = path.join(QUEUE_DIR, `${safeId}.json`);
+/**
+ * Mark a record processed atomically: write a sibling then rename. A plain
+ * rewrite can be interrupted and leave truncated JSON, which on restart looks
+ * like a corrupt record rather than an unprocessed one.
+ */
+function markProcessed(id) {
+  const record = readRecord(id);
+  if (!record) return;
+  record.processedAt = new Date().toISOString();
+  const tmp = `${recordPath(id)}.tmp`;
+  const fd = fs.openSync(tmp, 'w');
   try {
-    const record = JSON.parse(fs.readFileSync(file, 'utf8'));
-    record.processedAt = new Date().toISOString();
-    fs.writeFileSync(file, JSON.stringify(record));
-  } catch (err) {
-    console.error(`could not mark ${safeId} processed:`, err);
+    fs.writeFileSync(fd, JSON.stringify(record));
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
   }
+  fs.renameSync(tmp, recordPath(id));   // atomic on POSIX
+}
+
+/**
+ * Run the handler for a stored record, never letting a synchronous throw
+ * escape. An earlier version called JSON.parse inside the callback, where a
+ * malformed body threw past the promise's .catch() and killed the process.
+ */
+async function processRecord(id) {
+  const record = readRecord(id);
+  if (!record || record.processedAt) return;
+  try {
+    await handleEvent(JSON.parse(record.body));
+    markProcessed(id);
+  } catch (err) {
+    console.error(`handler failed for ${id}, record kept unprocessed:`, err.message);
+  }
+}
+
+/** Resume anything stored but not processed, e.g. after a crash or restart. */
+function resumePending() {
+  let pending = 0;
+  for (const file of fs.readdirSync(QUEUE_DIR)) {
+    if (!file.endsWith('.json')) continue;
+    const id = file.slice(0, -'.json'.length);
+    const record = readRecord(id);
+    if (record && !record.processedAt) {
+      pending++;
+      process.nextTick(() => processRecord(id));
+    }
+  }
+  if (pending) console.log(`resuming ${pending} unprocessed deliveries`);
+  return pending;
 }
 
 function readRawBody(req, limitBytes = 1024 * 1024) {
@@ -106,6 +150,12 @@ function readRawBody(req, limitBytes = 1024 * 1024) {
   });
 }
 
+function reject(res, status, reason) {
+  console.warn(`rejected delivery: ${reason}`);
+  res.writeHead(status, { 'content-type': 'application/json' })
+     .end(JSON.stringify({ error: reason }));
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method !== 'POST' || req.url !== '/webhooks/42min') {
     res.writeHead(404).end();
@@ -120,61 +170,57 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const result = verifyWebhook(rawBody, req.headers['x-42min-webhook-signature'], SECRET);
-  if (!result.ok) {
-    // 42min retries a non-2xx, which is correct: a genuine secret mismatch
-    // needs your attention rather than silence.
-    console.warn(`rejected delivery: ${result.reason}`);
-    res.writeHead(401, { 'content-type': 'application/json' })
-       .end(JSON.stringify({ error: result.reason }));
-    return;
+  const verified = verifyWebhook(rawBody, req.headers['x-42min-webhook-signature'], SECRET);
+  if (!verified.ok) return reject(res, 401, verified.reason);
+
+  // Identify before storing: a delivery with no id cannot be deduped, and
+  // filing it under "unknown" makes every such delivery collide with the last.
+  const deliveryId = req.headers['x-42min-webhook-id'];
+  if (!deliveryId || !SAFE_ID.test(deliveryId)) return reject(res, 400, 'missing or malformed X-42min-Webhook-Id');
+  if (!req.headers['x-42min-webhook-event']) return reject(res, 400, 'missing X-42min-Webhook-Event');
+
+  // Validate BEFORE storing and acknowledging. A body that cannot be parsed
+  // will never parse, so accepting it would durably store garbage and report
+  // success. Refusing surfaces the problem: 42min retries, then pauses the
+  // subscription, which is the signal you want for a genuine defect.
+  try {
+    JSON.parse(rawBody.toString('utf8'));
+  } catch {
+    return reject(res, 400, 'body is not valid JSON');
   }
 
-  const deliveryId = req.headers['x-42min-webhook-id'];
-  const eventName = req.headers['x-42min-webhook-event'];
-
-  let isNew;
+  let stored;
   try {
-    isNew = storeDelivery(deliveryId, req.headers, rawBody);
+    stored = storeDelivery(deliveryId, req.headers, rawBody);
   } catch (err) {
-    // Could not persist: do NOT acknowledge. Let 42min retry, because the
-    // alternative is silently dropping the event.
-    console.error(`could not store ${deliveryId}:`, err);
+    // Could not persist: do NOT acknowledge. Let 42min retry rather than
+    // silently dropping the event.
+    console.error(`could not store ${deliveryId}:`, err.message);
     res.writeHead(503).end();
     return;
   }
 
-  // Safely stored, so it is honest to say we have it. Answer immediately:
-  // delivery times out after 10 seconds.
+  // Safely stored, so it is honest to say we have it. Answer immediately.
   res.writeHead(204).end();
 
-  if (!isNew) {
-    console.log(`duplicate ${eventName} ${deliveryId}, already stored`);
-    return;
+  if (!stored.created) {
+    const existing = readRecord(deliveryId);
+    if (existing && existing.processedAt) {
+      console.log(`duplicate ${deliveryId}, already processed`);
+      return;
+    }
+    // Stored earlier but never finished: a retry is a second chance, not a
+    // duplicate to discard.
+    console.log(`retry of unprocessed ${deliveryId}, resuming`);
   }
 
-  // Failures here do not lose the event: the stored record stays put for a
-  // retry or for inspection. A real worker would poll the store rather than
-  // run inline like this.
-  //
-  // Success MARKS the record, it does not delete it. Deleting would destroy
-  // the dedupe evidence, and a retry arriving afterwards would look new and be
-  // processed a second time. Prune by age instead, well beyond the retry
-  // window, which ends 12 hours after the first attempt.
-  process.nextTick(() => {
-    handleEvent(JSON.parse(rawBody.toString('utf8')))
-      .then(() => markProcessed(deliveryId))
-      .catch((err) => console.error(`handler failed for ${deliveryId}, record kept:`, err));
-  });
+  process.nextTick(() => processRecord(deliveryId));
 });
 
 /**
- * The envelope is:
- *   { id, event, createdAt, apiVersion, data }
- * Note it is camelCase, unlike the snake_case REST API.
- *
- * `event` here uses dot names (booking.created). The REST API accepts and
- * returns the underscore form (booking_created) when you manage subscriptions.
+ * The envelope is { id, event, createdAt, apiVersion, data }, camelCase, unlike
+ * the snake_case REST API. `event` uses dot names (booking.created); the REST
+ * API takes the underscore form when you manage subscriptions.
  */
 async function handleEvent(event) {
   switch (event.event) {
@@ -191,8 +237,13 @@ async function handleEvent(event) {
   }
 }
 
-server.listen(PORT, () => {
-  console.log(`listening on http://127.0.0.1:${PORT}/webhooks/42min`);
-  console.log(`queue: ${QUEUE_DIR}`);
-  console.log('Expose it over HTTPS (42min refuses plain http) and register that URL.');
-});
+if (require.main === module) {
+  resumePending();
+  server.listen(PORT, () => {
+    console.log(`listening on http://127.0.0.1:${PORT}/webhooks/42min`);
+    console.log(`queue: ${QUEUE_DIR}`);
+    console.log('Expose it over HTTPS (42min refuses plain http) and register that URL.');
+  });
+}
+
+module.exports = { server, resumePending, processRecord, readRecord, QUEUE_DIR };

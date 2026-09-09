@@ -14,8 +14,20 @@ this directory into `~/.cursor/plugins/local`:
 
 ```bash
 git clone https://github.com/42min-us/42min-developers.git
-cp -r 42min-developers/plugins/42min ~/.cursor/plugins/local/42min
+mkdir -p ~/.cursor/plugins/local/42min
+cp -R 42min-developers/plugins/42min/. ~/.cursor/plugins/local/42min/
 ```
+
+On Windows, in PowerShell:
+
+```powershell
+git clone https://github.com/42min-us/42min-developers.git
+New-Item -ItemType Directory -Force -Path "$HOME\.cursor\plugins\local\42min"
+Copy-Item -Recurse -Force "42min-developers\plugins\42min\*" "$HOME\.cursor\plugins\local\42min\"
+```
+
+Then restart Cursor, or run **Developer: Reload Window** from the command palette.
+The plugin and its MCP server appear under Customize.
 
 ## Authorization
 

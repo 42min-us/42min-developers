@@ -11,7 +11,7 @@
     {
       "name": "42min",
       "source": "plugins/42min",
-      "description": "Connect Cursor to your 42min account: event types, availability, bookings, round-robin scheduling, meeting polls and routing forms."
+      "description": "Connect Cursor to your 42min account: bookings, availability, round-robin scheduling, meeting polls and routing forms."
     }
   ]
 }

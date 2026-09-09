@@ -1,7 +1,7 @@
 {
   "name": "42min",
   "displayName": "42min",
-  "description": "Connect Cursor to your 42min account. Create and manage event types, availability, bookings, round-robin scheduling, meeting polls and routing forms without leaving the editor.",
+  "description": "Connect Cursor to your 42min account. Manage bookings, availability, round-robin scheduling, meeting polls and routing forms, and inspect or toggle event types, without leaving the editor.",
   "version": "0.1.0",
   "author": {
     "name": "42min",

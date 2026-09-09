@@ -42,7 +42,7 @@ jobs:
       # nothing. Two real bugs in this file were an unquoted comma inside a YAML
       # flow mapping silently becoming a second key, exactly what this catches.
       - name: Specification is valid OpenAPI 3.1
-        run: npx --yes @redocly/cli@latest lint openapi/42min.v1.yaml
+        run: npx --yes @redocly/cli@1.34.2 lint openapi/42min.v1.yaml
 
   webhook-example:
     name: Webhook example
@@ -76,9 +76,21 @@ jobs:
       # `owner` where an object is required, plugin entries as bare strings, a
       # top-level `description` the schema forbids. Syntax checks give
       # confidence without giving correctness.
+      # Every JSON file, not just the two the schemas cover. An earlier version
+      # of this job dropped this loop, which meant a malformed mcp.json would
+      # pass: nothing parsed it.
+      - name: All JSON files parse
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" \
+              || { echo "invalid JSON: $f"; fail=1; }
+          done < <(git ls-files '*.json')
+          exit $fail
+
       - name: Validate manifests against Cursor's schemas
         run: |
-          npm install --no-save ajv@8 ajv-formats@2
+          npm install --no-save ajv@8.17.1 ajv-formats@3.0.1
           curl -sSfL https://raw.githubusercontent.com/cursor/plugins/main/schemas/marketplace.schema.json -o /tmp/marketplace.schema.json
           curl -sSfL https://raw.githubusercontent.com/cursor/plugins/main/schemas/plugin.schema.json -o /tmp/plugin.schema.json
           node -e '
