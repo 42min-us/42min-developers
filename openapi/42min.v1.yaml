@@ -717,6 +717,7 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/Webhook" }
                   meta: { $ref: "#/components/schemas/Meta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/RateLimited" }
@@ -784,6 +785,7 @@ paths:
             X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
             X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
             X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404":
           description: No such subscription, including one already deleted.
@@ -823,6 +825,7 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/WebhookWithSecret" }
                   meta: { $ref: "#/components/schemas/Meta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/RateLimited" }
@@ -854,6 +857,7 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/WebhookDelivery" }
                   meta: { $ref: "#/components/schemas/Meta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/RateLimited" }
@@ -889,6 +893,7 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/WebhookDelivery" }
                   meta: { $ref: "#/components/schemas/PageMeta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/RateLimited" }
@@ -1038,6 +1043,9 @@ components:
       name: id
       in: path
       required: true
+      description: |
+        Must be a UUID. A malformed value is rejected with 400 `invalid_request`
+        before any lookup, rather than treated as a resource that does not exist.
       schema: { type: string, format: uuid }
 
   headers:
