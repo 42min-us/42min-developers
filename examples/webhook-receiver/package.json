@@ -1,0 +1,12 @@
+{
+  "name": "42min-webhook-receiver-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A dependency-free 42min webhook receiver with correct signature verification.",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  }
+}

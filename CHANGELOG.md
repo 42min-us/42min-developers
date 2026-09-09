@@ -28,3 +28,7 @@ changing its meaning is a breaking change.
 - Initial public repository: Cursor plugin and OpenAPI specification.
 - `openapi/42min.v1.yaml` published: OpenAPI 3.1 covering the six `/v1` resources, both
   security schemes, the error envelope, pagination, and the eight webhook events.
+- The specification is served at `https://api.42min.us/openapi.yaml`, with CORS, so
+  browser tooling and coding agents can load it directly.
+- `examples/webhook-receiver`: a dependency-free receiver with correct signature
+  verification, replay rejection, retry-safe dedupe and ten tests.

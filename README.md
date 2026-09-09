@@ -36,6 +36,13 @@ route-coverage check also fails if an endpoint exists but is undocumented, or th
 If you find a place where this file and the API disagree, the file is probably wrong:
 please [open an issue](https://github.com/42min-us/42min-developers/issues/new?labels=specification).
 
+### `examples/webhook-receiver`
+
+A working receiver in about 120 lines with no dependencies, and ten tests for
+`verify.js` alone. Signature verification is where integrations break: the usual cause is
+verifying a re-serialized body rather than the raw bytes, which no amount of reading the
+docs makes obvious. Copy `verify.js` and move on.
+
 ## Authentication in one paragraph
 
 Two mechanisms. **OAuth 2.1** with PKCE for applications acting on behalf of a user,
