@@ -30,9 +30,15 @@ Two scopes govern access:
 | `mcp:scheduling:read` | Every read tool below |
 | `mcp:scheduling:write` | The tools marked *(write)* |
 
-The server registers only the tools your granted scopes cover and re-checks on every call.
-Approving read-only access means the write tools are not merely refused, they are not
-offered. It acts as you, inside your organization, and never sees another tenant's data.
+The server registers only the tools your granted scopes cover, and re-checks on every
+call: tools you cannot use are not merely refused, they are never offered. It acts as
+you, inside your organization, and never sees another tenant's data.
+
+**Connecting over OAuth grants both scopes.** The consent screen is approve-or-deny, not
+a menu, so there is no read-only option on this path. If you want an assistant that can
+look but not touch, connect with a
+[personal access token](https://42min.us/help/ai-assistants/connecting-your-assistant)
+scoped to `:read` only. Minting a token requires the Admin role.
 
 ## Tools
 
