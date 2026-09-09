@@ -1,8 +1,17 @@
 {
   "name": "42min",
-  "owner": "42min-us",
-  "description": "Official 42min plugins for Cursor.",
+  "owner": {
+    "name": "42min",
+    "email": "plus@42min.us"
+  },
+  "metadata": {
+    "description": "Official 42min plugins for Cursor."
+  },
   "plugins": [
-    "plugins/42min"
+    {
+      "name": "42min",
+      "source": "plugins/42min",
+      "description": "Connect Cursor to your 42min account: event types, availability, bookings, round-robin scheduling, meeting polls and routing forms."
+    }
   ]
 }

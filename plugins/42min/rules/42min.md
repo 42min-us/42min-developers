@@ -1,6 +1,6 @@
 ---
 description: How to use the 42min scheduling tools correctly, including timezone handling and which operations are destructive.
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Working with 42min
@@ -32,10 +32,12 @@ whose 3pm if it is not already established.
 These operations send email, place calendar holds, or take down a live page. Describe
 what will happen and get explicit confirmation first:
 
+- `create_booking` sends a confirmation email to the attendee and creates a real
+  calendar event. There is no test environment, so this reaches a real person.
+- `cancel_booking` emails the attendee and removes the calendar event.
+- `reschedule_booking` emails the attendee.
 - `publish_roundtable` sends invitations to every participant and places tentative
   holds on all candidate slots. It cannot be undone through this server.
-- `cancel_booking` notifies the attendee and removes the calendar event.
-- `reschedule_booking` notifies the attendee.
 - `set_event_type_status` and `set_routing_form_status`, when turning something off,
   immediately stop new public bookings or submissions. A routing form that other forms
   chain into will send those leads to a dead page.

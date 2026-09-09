@@ -44,9 +44,20 @@ mismatch.
 who captures one delivery can replay it indefinitely. 42min does not enforce a
 window for you. This example rejects anything outside five minutes.
 
-**Working before acknowledging.** Delivery times out after **10 seconds** and
-is then recorded as a failure and retried, even if your handler eventually
-succeeded. Return a 2xx immediately and do the work afterwards.
+**Acknowledging in the wrong order.** The order is:
+
+> verify → store durably → acknowledge → process
+
+Acknowledging before the delivery is safely written loses the event permanently
+if you crash in between: 42min has been told you have it and will never retry.
+Processing before acknowledging blows the **10-second** delivery timeout, so you
+are retried six times for work you already did. Storing first is what lets you
+answer fast and still keep the event.
+
+One consequence people miss: when processing succeeds, **mark** the stored
+record, do not delete it. Deleting destroys the dedupe evidence, and a retry
+arriving afterwards looks new and is processed twice. Prune by age instead,
+comfortably past the 12-hour retry window.
 
 ## Retries and pausing
 

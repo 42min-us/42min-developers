@@ -9,8 +9,13 @@ The plugin does not ship a server. It points Cursor at 42min's hosted MCP server
 
 ## Install
 
-From the Cursor marketplace, or drop this directory into `~/.cursor/plugins/local` to run
-it unpublished.
+The marketplace submission is pending. Until it is accepted, install locally by copying
+this directory into `~/.cursor/plugins/local`:
+
+```bash
+git clone https://github.com/42min-us/42min-developers.git
+cp -r 42min-developers/plugins/42min ~/.cursor/plugins/local/42min
+```
 
 ## Authorization
 
@@ -101,10 +106,10 @@ The server exposes **35 tools**. Write tools are marked; everything else is read
 | Tool | What it does |
 |---|---|
 | `duplicate_routing_form` *(write)* | Copy a routing form, including its questions and rules — the copied rules keep working on the copy, and destinations are copied as is. |
-| `evaluate_routing_form` | Answer with question_ids from get_routing_form (values as strings, numbers, booleans or null — numbers as numbers, e.g. 0, exactly as the public form sends them; checkboxes as arrays of those;... |
+| `evaluate_routing_form` | Test routing (dry run) |
 | `get_routing_form` | The full definition of one routing form: its questions (question_id is what list_routing_responses answer filters and evaluate_routing_form answers use) and its rules. |
 | `get_routing_form_stats` | One call for 'how is this form converting / where do leads land'. |
-| `get_routing_response` | The full record for one response — every stored answer entry (current questions, UUID keys whose question no longer exists or never did, and any other stored key) with its raw value where the... |
+| `get_routing_response` | Get one routing form response |
 | `list_routing_forms` | List the lead-qualification routing forms you can access, newest first, with their public URL, status and question/rule/response counts. |
 | `list_routing_responses` | Lead-qualification submissions for one routing form: what each lead answered, which rule matched, where they were sent, and the booking they made if any. |
 | `set_routing_form_status` *(write)* | Turn a routing form on or off. |
@@ -122,7 +127,6 @@ The server exposes **35 tools**. Write tools are marked; everything else is read
 | Tool | What it does |
 |---|---|
 | `list_users` | List organization members (id, name, email, username, role, status, timezone). |
-
 
 ## Included guidance
 

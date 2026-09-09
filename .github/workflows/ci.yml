@@ -66,37 +66,79 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate JSON
-        run: |
-          fail=0
-          while IFS= read -r f; do
-            python3 -c "import json,sys; json.load(open('$f'))" \
-              || { echo "invalid JSON: $f"; fail=1; }
-          done < <(git ls-files '*.json')
-          exit $fail
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
+      # Validate against Cursor's OWN published schemas, not our idea of them.
+      # An earlier version of this job checked JSON syntax and path resolution
+      # only, and happily passed manifests the marketplace rejects: a string
+      # `owner` where an object is required, plugin entries as bare strings, a
+      # top-level `description` the schema forbids. Syntax checks give
+      # confidence without giving correctness.
+      - name: Validate manifests against Cursor's schemas
+        run: |
+          npm install --no-save ajv@8 ajv-formats@2
+          curl -sSfL https://raw.githubusercontent.com/cursor/plugins/main/schemas/marketplace.schema.json -o /tmp/marketplace.schema.json
+          curl -sSfL https://raw.githubusercontent.com/cursor/plugins/main/schemas/plugin.schema.json -o /tmp/plugin.schema.json
+          node -e '
+            const Ajv = require("ajv"), addFormats = require("ajv-formats"), fs = require("fs");
+            const ajv = new Ajv({allErrors: true, strict: false});
+            addFormats(ajv);
+            let failed = false;
+            const pairs = [
+              ["/tmp/marketplace.schema.json", ".cursor-plugin/marketplace.json"],
+              ["/tmp/plugin.schema.json", "plugins/42min/.cursor-plugin/plugin.json"],
+            ];
+            for (const [schema, doc] of pairs) {
+              const validate = ajv.compile(JSON.parse(fs.readFileSync(schema, "utf8")));
+              if (validate(JSON.parse(fs.readFileSync(doc, "utf8")))) {
+                console.log(`ok    ${doc}`);
+              } else {
+                failed = true;
+                console.error(`FAIL  ${doc}`);
+                for (const e of validate.errors) console.error(`        ${e.instancePath || "(root)"} ${e.message}`);
+              }
+            }
+            process.exit(failed ? 1 : 0);
+          '
+
+      # Cursor rejects absolute paths and any ".." segment, and a manifest that
+      # points at a file which is not there installs as a broken plugin.
       - name: Manifest paths are relative and resolvable
         run: |
           python3 - <<'PY'
           import json, pathlib, sys
-
           fail = []
           for manifest in pathlib.Path('plugins').glob('*/.cursor-plugin/plugin.json'):
               root = manifest.parent.parent
               data = json.loads(manifest.read_text())
-
-              name = data.get('name', '')
-              if not name or not all(c.islower() or c.isdigit() or c in '-.' for c in name):
-                  fail.append(f'{manifest}: name must be lowercase kebab-case, got {name!r}')
-
-              # Cursor rejects absolute paths and any '..' segment.
               refs = [data.get('logo'), data.get('mcpServers')] + list(data.get('rules') or [])
               for ref in [r for r in refs if isinstance(r, str)]:
                   if ref.startswith('/') or '..' in ref.split('/'):
                       fail.append(f'{manifest}: path must be relative without "..": {ref}')
                   elif not (root / ref).exists():
                       fail.append(f'{manifest}: referenced file missing: {ref}')
+          for line in fail:
+              print(line)
+          sys.exit(1 if fail else 0)
+          PY
 
+      # Every plugin listed by the marketplace must actually be there.
+      - name: Marketplace entries resolve
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, sys
+          mk = json.loads(pathlib.Path('.cursor-plugin/marketplace.json').read_text())
+          fail = []
+          for entry in mk.get('plugins', []):
+              src = pathlib.Path(entry['source'])
+              if not (src / '.cursor-plugin' / 'plugin.json').exists():
+                  fail.append(f"marketplace entry {entry['name']}: no plugin.json under {src}")
+                  continue
+              declared = json.loads((src / '.cursor-plugin' / 'plugin.json').read_text()).get('name')
+              if declared != entry['name']:
+                  fail.append(f"marketplace says {entry['name']!r}, plugin.json says {declared!r}")
           for line in fail:
               print(line)
           sys.exit(1 if fail else 0)

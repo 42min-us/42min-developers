@@ -69,8 +69,13 @@ if command -v gitleaks >/dev/null 2>&1; then
     fi
   fi
 else
-  printf '\nWARNING: gitleaks is not installed; secret scanning was SKIPPED.\n'
-  printf '  Install it before publishing: https://github.com/gitleaks/gitleaks\n'
+  # Fail, do not warn. This script is the PRIMARY control against publishing a
+  # secret, and disclosure is irreversible. A warning that still exits 0 means
+  # the one run where gitleaks happens to be missing is the run that publishes
+  # a credential, and the person pushing sees a passing gate.
+  bad "gitleaks is not installed, so secrets were never scanned"
+  note "install it: https://github.com/gitleaks/gitleaks"
+  note "this gate refuses to pass without it"
 fi
 
 if [ "$fail" -ne 0 ]; then
