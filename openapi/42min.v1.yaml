@@ -1,0 +1,1439 @@
+openapi: 3.1.0
+
+info:
+  title: 42min API
+  version: "1.0.0"
+  summary: Scheduling, availability and bookings for the 42min platform.
+  description: |
+    The 42min public REST API.
+
+    **Envelope.** Every successful response is wrapped: the payload is under `data`,
+    and `meta` always carries a `request_id`. Quote that id when reporting a problem.
+    Errors are not wrapped in `data`; they return a top-level `error` object.
+
+    **Forward compatibility.** New fields, endpoints and optional parameters ship
+    without notice. Ignore unknown fields rather than rejecting them. A client that
+    validates strictly against a fixed field list will break on a routine release.
+
+    **No sandbox.** Write operations act on production. Creating a booking sends real
+    email and writes to a real calendar. Test against event types you own.
+  contact:
+    name: 42min developers
+    url: https://github.com/42min-us/42min-developers
+    email: plus@42min.us
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: https://api.42min.us
+    description: Production
+
+security:
+  - oauth2: []
+  - personalAccessToken: []
+
+tags:
+  - name: Meta
+    description: Connectivity and identity.
+  - name: Event types
+    description: Bookable meeting templates.
+  - name: Slots
+    description: Availability computation.
+  - name: Bookings
+    description: Creating and modifying bookings.
+  - name: Webhooks
+    description: Subscriptions and delivery history.
+
+paths:
+  /v1/_ping:
+    get:
+      tags: [Meta]
+      operationId: ping
+      summary: Verify credentials and connectivity
+      description: Cheapest authenticated call. Use it to confirm a token works.
+      responses:
+        "200":
+          description: Reachable and authenticated.
+          headers:
+            X-RateLimit-Limit: { $ref: "#/components/headers/X-RateLimit-Limit" }
+            X-RateLimit-Remaining: { $ref: "#/components/headers/X-RateLimit-Remaining" }
+            X-RateLimit-Reset: { $ref: "#/components/headers/X-RateLimit-Reset" }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      ok: { type: boolean }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/me:
+    get:
+      tags: [Meta]
+      operationId: getMe
+      summary: The authenticated user and their organization
+      security:
+        - oauth2: [user:read]
+        - personalAccessToken: [user:read]
+      responses:
+        "200":
+          description: The connected identity.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Me" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/event-types:
+    get:
+      tags: [Event types]
+      operationId: listEventTypes
+      summary: List event types
+      security:
+        - oauth2: [event_types:read]
+        - personalAccessToken: [event_types:read]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: sort
+          in: query
+          schema: { type: string, default: created_at_desc }
+        - name: user_id
+          in: query
+          description: Only event types hosted by this user.
+          schema: { type: string, format: uuid }
+        - name: slug
+          in: query
+          schema: { type: string }
+        - name: active
+          in: query
+          description: Filter by whether the event type accepts bookings.
+          schema: { type: string, enum: ["true", "false"] }
+      responses:
+        "200":
+          description: A page of event types.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/EventType" }
+                  meta: { $ref: "#/components/schemas/PageMeta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/event-types/{idOrSlug}:
+    get:
+      tags: [Event types]
+      operationId: getEventType
+      summary: Get one event type
+      description: Accepts either the event type UUID or its slug.
+      security:
+        - oauth2: [event_types:read]
+        - personalAccessToken: [event_types:read]
+      parameters:
+        - name: idOrSlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Full event type detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/EventTypeDetail" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/slots:
+    get:
+      tags: [Slots]
+      operationId: listSlots
+      summary: Bookable slots for an event type over a date range
+      description: |
+        Availability is computed from the host's schedule minus connected-calendar busy
+        time, buffers, minimum notice and booking limits. Identify the event type by
+        `event_type_id`, or by `username` plus `event_slug`.
+
+        A very wide range is capped; when that happens `truncated` is `true` and you
+        should narrow the range rather than paginate.
+      security:
+        - oauth2: [slots:read]
+        - personalAccessToken: [slots:read]
+      parameters:
+        - name: event_type_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: username
+          in: query
+          schema: { type: string }
+        - name: event_slug
+          in: query
+          schema: { type: string }
+        - name: start
+          in: query
+          required: true
+          description: Start of the range, ISO 8601.
+          schema: { type: string, format: date-time }
+        - name: end
+          in: query
+          required: true
+          description: End of the range, ISO 8601.
+          schema: { type: string, format: date-time }
+        - name: timezone
+          in: query
+          description: IANA timezone the slots are computed for.
+          schema: { type: string, examples: ["Europe/Lisbon"] }
+      responses:
+        "200":
+          description: Computed availability.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/SlotList" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/slots/check:
+    get:
+      tags: [Slots]
+      operationId: checkSlot
+      summary: Check whether one specific start time is bookable
+      description: |
+        Call this before creating a booking. When unavailable, the response says why,
+        and for `slot_busy` it suggests the next available start.
+      security:
+        - oauth2: [slots:read]
+        - personalAccessToken: [slots:read]
+      parameters:
+        - name: event_type_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: username
+          in: query
+          schema: { type: string }
+        - name: event_slug
+          in: query
+          schema: { type: string }
+        - name: start
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: end
+          in: query
+          description: Defaults to start plus the event type's duration.
+          schema: { type: string, format: date-time }
+        - name: timezone
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Whether the slot can be booked.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/SlotCheck" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/bookings:
+    get:
+      tags: [Bookings]
+      operationId: listBookings
+      summary: List bookings
+      security:
+        - oauth2: [bookings:read]
+        - personalAccessToken: [bookings:read]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: sort
+          in: query
+          schema: { type: string, default: start_at_desc }
+        - name: status
+          in: query
+          description: Comma-separated list of statuses.
+          schema: { type: string }
+        - name: event_type_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: host_user_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: host_user_ids
+          in: query
+          description: Supersedes host_user_id when both are given.
+          schema:
+            type: array
+            items: { type: string, format: uuid }
+        - name: attendee_email
+          in: query
+          schema: { type: string, format: email }
+        - name: start_date
+          in: query
+          schema: { type: string, format: date-time }
+        - name: end_date
+          in: query
+          schema: { type: string, format: date-time }
+        - name: updated_since
+          in: query
+          description: Only bookings modified at or after this instant. Use for incremental sync.
+          schema: { type: string, format: date-time }
+        - name: include_cancelled
+          in: query
+          description: Pass "false" to omit canceled bookings.
+          schema: { type: string, enum: ["true", "false"] }
+      responses:
+        "200":
+          description: A page of bookings.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Booking" }
+                  meta: { $ref: "#/components/schemas/PageMeta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+    post:
+      tags: [Bookings]
+      operationId: createBooking
+      summary: Create a booking
+      description: |
+        Books a time on an active event type. Verify the slot with `/v1/slots/check`
+        first: a slot that was free a moment ago may not be.
+
+        **This sends real email and writes to a real calendar.** Retry with the same
+        `Idempotency-Key` rather than reissuing the call, or you will create a second
+        booking.
+      security:
+        - oauth2: [bookings:create]
+        - personalAccessToken: [bookings:create]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBookingRequest" }
+      responses:
+        "201":
+          description: Booking created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Booking" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/bookings/{uid}:
+    parameters:
+      - $ref: "#/components/parameters/BookingUid"
+    get:
+      tags: [Bookings]
+      operationId: getBooking
+      summary: Get one booking
+      description: |
+        Returns an `ETag`. Send it back as `If-Match` on a `PATCH` to make a concurrent
+        edit fail loudly instead of silently overwriting.
+      security:
+        - oauth2: [bookings:read]
+        - personalAccessToken: [bookings:read]
+      responses:
+        "200":
+          description: The booking, including invitee form answers.
+          headers:
+            ETag:
+              description: Opaque version token for optimistic locking.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Booking" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+    patch:
+      tags: [Bookings]
+      operationId: updateBooking
+      summary: Update a booking
+      description: |
+        The only operation that supports optimistic locking. Send `If-Match` with the
+        ETag from a prior read; a mismatch returns 409 rather than overwriting.
+      security:
+        - oauth2: [bookings:update]
+        - personalAccessToken: [bookings:update]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: If-Match
+          in: header
+          required: true
+          description: |
+            **Required.** The ETag from a prior `GET` of this booking. Omitting it
+            returns 428 `missing_if_match` and the booking is not modified: read first,
+            then send back the ETag you received.
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateBookingRequest" }
+      responses:
+        "200":
+          description: Updated booking.
+          headers:
+            ETag:
+              description: The new version token.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Booking" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            Version conflict. The booking changed since the ETag you sent, or an
+            immutable field was included in the body.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/bookings/{uid}/cancel:
+    post:
+      tags: [Bookings]
+      operationId: cancelBooking
+      summary: Cancel a booking
+      description: |
+        Notifies the attendee and removes the calendar event. Idempotent: canceling an
+        already-canceled booking returns its current state.
+
+        For a group event this cancels one attendee's registration, not the session.
+      security:
+        - oauth2: [bookings:cancel]
+        - personalAccessToken: [bookings:cancel]
+      parameters:
+        - $ref: "#/components/parameters/BookingUid"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 1024
+                  description: Shown to the attendee in the cancellation email.
+      responses:
+        "200":
+          description: Canceled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Booking" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/bookings/{uid}/reschedule:
+    post:
+      tags: [Bookings]
+      operationId: rescheduleBooking
+      summary: Move a booking to a new time
+      description: |
+        Notifies the attendee. Verify the new slot first; on `slot_unavailable`, call
+        `/v1/slots` and offer real alternatives rather than retrying a guess.
+      security:
+        - oauth2: [bookings:reschedule]
+        - personalAccessToken: [bookings:reschedule]
+      parameters:
+        - $ref: "#/components/parameters/BookingUid"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start]
+              properties:
+                start:
+                  type: string
+                  format: date-time
+                  description: New start time, ISO 8601.
+                timezone: { type: string }
+                reason: { type: string, maxLength: 1024 }
+      responses:
+        "200":
+          description: Rescheduled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Booking" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/webhooks:
+    get:
+      tags: [Webhooks]
+      operationId: listWebhooks
+      summary: List your webhook subscriptions
+      description: |
+        Scoped to the credential that created them: an OAuth client sees only its own
+        subscriptions, and a personal access token only its own.
+      security:
+        - oauth2: [webhooks:read]
+        - personalAccessToken: [webhooks:read]
+      responses:
+        "200":
+          description: Your subscriptions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Webhook" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+    post:
+      tags: [Webhooks]
+      operationId: createWebhook
+      summary: Subscribe to events
+      description: |
+        The `signing_secret` is returned **only in this response**. Store it now; it
+        cannot be read back, only rotated.
+
+        Note this endpoint does not accept `Idempotency-Key`. A retried call creates a
+        second subscription and both will deliver.
+      security:
+        - oauth2: [webhooks:write]
+        - personalAccessToken: [webhooks:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, events]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  maxLength: 2000
+                  description: HTTPS only.
+                events:
+                  type: array
+                  minItems: 1
+                  items: { $ref: "#/components/schemas/WebhookEventName" }
+                description: { type: string, maxLength: 255 }
+      responses:
+        "201":
+          description: Created. Contains the signing secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookWithSecret" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/webhooks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/WebhookId"
+    get:
+      tags: [Webhooks]
+      operationId: getWebhook
+      summary: Get one subscription
+      security:
+        - oauth2: [webhooks:read]
+        - personalAccessToken: [webhooks:read]
+      responses:
+        "200":
+          description: The subscription.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Webhook" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+    patch:
+      tags: [Webhooks]
+      operationId: updateWebhook
+      summary: Update a subscription
+      security:
+        - oauth2: [webhooks:write]
+        - personalAccessToken: [webhooks:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string, format: uri, maxLength: 2000 }
+                events:
+                  type: array
+                  minItems: 1
+                  items: { $ref: "#/components/schemas/WebhookEventName" }
+                description: { type: string, maxLength: 255 }
+                status: { type: string, enum: [active, paused] }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Webhook" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+    delete:
+      tags: [Webhooks]
+      operationId: deleteWebhook
+      summary: Delete a subscription
+      description: |
+        Safe against a duplicate request racing the first: concurrent deletes both
+        succeed rather than one failing. This is narrower than full idempotency, and
+        the distinction matters when you write retry logic. A *sequential* repeat, once
+        the subscription is gone, returns 404 rather than 204. Treat that 404 as
+        success if all you needed was for the subscription to be absent.
+      security:
+        - oauth2: [webhooks:write]
+        - personalAccessToken: [webhooks:write]
+      responses:
+        "204":
+          description: Deleted. No response body, so there is no envelope here.
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: No such subscription, including one already deleted.
+          headers:
+            X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/webhooks/{id}/rotate-secret:
+    post:
+      tags: [Webhooks]
+      operationId: rotateWebhookSecret
+      summary: Rotate the signing secret
+      description: |
+        Returns a new secret and invalidates the old one immediately. Deliveries signed
+        with the previous secret will fail verification from this point on.
+      security:
+        - oauth2: [webhooks:write]
+        - personalAccessToken: [webhooks:write]
+      parameters:
+        - $ref: "#/components/parameters/WebhookId"
+      responses:
+        "200":
+          description: New signing secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookWithSecret" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/webhooks/{id}/test:
+    post:
+      tags: [Webhooks]
+      operationId: testWebhook
+      summary: Send a test delivery
+      description: Sends a synthetic event to the subscription URL so you can verify signing.
+      security:
+        - oauth2: [webhooks:write]
+        - personalAccessToken: [webhooks:write]
+      parameters:
+        - $ref: "#/components/parameters/WebhookId"
+      responses:
+        "200":
+          description: Test dispatched.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/WebhookDelivery" }
+                  meta: { $ref: "#/components/schemas/Meta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/webhooks/{id}/deliveries:
+    get:
+      tags: [Webhooks]
+      operationId: listWebhookDeliveries
+      summary: Delivery history for a subscription
+      description: Use this to debug a subscription that stopped working.
+      security:
+        - oauth2: [webhooks:read]
+        - personalAccessToken: [webhooks:read]
+      parameters:
+        - $ref: "#/components/parameters/WebhookId"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Recent delivery attempts, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookDelivery" }
+                  meta: { $ref: "#/components/schemas/PageMeta" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+webhooks:
+  booking.created:
+    post:
+      operationId: onBookingCreated
+      summary: A booking was created
+      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      responses:
+        "2XX": { description: Acknowledged. Any 2xx stops retries. }
+  booking.updated:
+    post:
+      operationId: onBookingUpdated
+      summary: A booking was modified
+      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      responses:
+        "2XX": { description: Acknowledged. }
+  booking.canceled:
+    post:
+      operationId: onBookingCanceled
+      summary: A booking was canceled
+      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      responses:
+        "2XX": { description: Acknowledged. }
+  booking.rescheduled:
+    post:
+      operationId: onBookingRescheduled
+      summary: A booking moved to a new time
+      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      responses:
+        "2XX": { description: Acknowledged. }
+  booking.no_show:
+    post:
+      operationId: onBookingNoShow
+      summary: A booking was marked as a no-show
+      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      responses:
+        "2XX": { description: Acknowledged. }
+  event_type.updated:
+    post:
+      operationId: onEventTypeUpdated
+      summary: An event type was modified
+      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      responses:
+        "2XX": { description: Acknowledged. }
+  event_type.deleted:
+    post:
+      operationId: onEventTypeDeleted
+      summary: An event type was deleted
+      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      responses:
+        "2XX": { description: Acknowledged. }
+  routing.form_submitted:
+    post:
+      operationId: onRoutingFormSubmitted
+      summary: A routing form was submitted
+      requestBody: { $ref: "#/components/requestBodies/WebhookDelivery" }
+      responses:
+        "2XX": { description: Acknowledged. }
+
+components:
+
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: |
+        OAuth 2.1 authorization code with PKCE, for applications acting on behalf of a
+        user. Dynamic Client Registration is supported, so a client can register itself
+        without contacting us.
+
+        Discovery: `https://api.42min.us/.well-known/oauth-authorization-server`
+      flows:
+        authorizationCode:
+          authorizationUrl: https://api.42min.us/v1/oauth/authorize
+          tokenUrl: https://api.42min.us/v1/oauth/token
+          refreshUrl: https://api.42min.us/v1/oauth/token
+          scopes:
+            user:read: Read the connected user's own profile
+            users:read: List organization members
+            event_types:read: Read event types
+            event_types:create: Create event types
+            event_types:update: Modify event types
+            event_types:delete: Delete event types
+            event_types:write: Full write access to event types
+            slots:read: Compute availability
+            bookings:read: Read bookings
+            bookings:create: Create bookings
+            bookings:cancel: Cancel bookings
+            bookings:reschedule: Reschedule bookings
+            bookings:update: Modify booking metadata and form answers
+            bookings:write: Full write access to bookings
+            webhooks:read: Read webhook subscriptions
+            webhooks:write: Manage webhook subscriptions
+            availability:read: Read schedules and availability
+            availability:write: Modify schedules and availability
+            meetings:read: Read the host-side meetings view
+            meetings:write: Modify meetings
+            contacts:read: Read contacts
+            single_use_links:read: Read single-use booking links
+            single_use_links:write: Create and delete single-use booking links
+            roundtables:read: Read meeting polls
+            roundtables:write: Manage meeting polls
+            routing_forms:read: Read routing forms and responses
+            routing_forms:create: Create routing forms
+            routing_forms:update: Modify routing forms
+            offline_access: Receive a refresh token
+    personalAccessToken:
+      type: http
+      scheme: bearer
+      description: |
+        A personal access token, for scripts acting as one person. Send it as
+        `Authorization: Bearer <token>`. Tokens carry scopes exactly as OAuth tokens do.
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      description: Items per page. Values above the maximum are clamped, not rejected.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Cursor:
+      name: cursor
+      in: query
+      description: |
+        Opaque cursor from a previous response's `meta.next_cursor`. Treat it as
+        meaningless text: its encoding is not part of this contract.
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        **Required.** Omitting it returns 400 `missing_idempotency_key`; the request is
+        not performed. Generate a unique key per logical operation (a UUID is fine).
+
+        Retrying with the same key replays the original result rather than acting twice.
+        A different key means a different operation, so a retry with a fresh key creates
+        a second booking.
+      schema: { type: string, maxLength: 255 }
+    BookingUid:
+      name: uid
+      in: path
+      required: true
+      schema: { type: string }
+    WebhookId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  headers:
+    X-Request-Id:
+      description: |
+        Present on every response, and identical to `request_id` in the body. Log it:
+        it is what lets us find your request when you report a problem.
+      schema: { type: string }
+    X-RateLimit-Limit:
+      description: Requests permitted in the current window.
+      schema: { type: integer }
+    X-RateLimit-Remaining:
+      description: Requests left in the current window.
+      schema: { type: integer }
+    X-RateLimit-Reset:
+      description: Unix epoch seconds at which the window resets.
+      schema: { type: integer }
+
+  requestBodies:
+    WebhookDelivery:
+      required: true
+      description: |
+        Sent to your endpoint with these headers:
+
+        - `X-42min-Webhook-Signature: t=<unix>,v1=<hex>`: HMAC over the timestamp and
+          the raw body, using the subscription's signing secret. Verify against the raw
+          bytes, before any JSON parsing, and compare in constant time.
+        - `X-42min-Webhook-Event`: the event name
+        - `X-42min-Webhook-Id`: delivery id, stable across retries; use it to dedupe
+        - `X-42min-Webhook-Attempt`: attempt number
+
+        Respond with any 2xx to acknowledge. Anything else is retried.
+      content:
+        application/json:
+          schema:
+            type: object
+            description: |
+              Note this envelope uses camelCase, unlike the snake_case REST API.
+            properties:
+              id:
+                type: string
+                description: Event id, prefixed `evt_`. Distinct from the delivery id in the headers.
+              event: { $ref: "#/components/schemas/WebhookEventDotName" }
+              createdAt: { type: string, format: date-time }
+              apiVersion:
+                type: string
+                description: Payload contract version, currently `2026-04-01`.
+                examples: ["2026-04-01"]
+              data:
+                type: object
+                description: The affected resource.
+                additionalProperties: true
+
+  responses:
+    BadRequest:
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+      description: Malformed request or an invalid query parameter.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing, malformed, expired or revoked credentials.
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+        WWW-Authenticate:
+          description: |
+            Bearer challenge, for example
+            `Bearer realm="42min", error="invalid_token"`.
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+      description: |
+        Authenticated but not permitted. Most often the token lacks a required scope,
+        in which case the error code is `insufficient_scope`.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+      description: No such resource, or it belongs to another organization.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+      description: The request conflicts with current state, such as a taken slot.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    UnprocessableEntity:
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+      description: Well-formed but semantically rejected, such as writing an immutable field.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PreconditionRequired:
+      description: |
+        A required precondition header was missing. Currently only `If-Match` on
+        `PATCH /v1/bookings/{uid}`, with error code `missing_if_match`.
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+    RateLimited:
+      description: Too many requests. Back off until the window resets.
+      headers:
+        X-Request-Id: { $ref: "#/components/headers/X-Request-Id" }
+        Retry-After:
+          description: Seconds to wait before retrying.
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+
+    Meta:
+      type: object
+      description: Present on every successful response.
+      required: [request_id]
+      properties:
+        request_id:
+          type: string
+          description: Quote this when reporting a problem. It identifies the request in our logs.
+
+    PageMeta:
+      allOf:
+        - $ref: "#/components/schemas/Meta"
+        - type: object
+          properties:
+            next_cursor:
+              type: [string, "null"]
+              description: Pass as `cursor` for the next page. Null on the last page.
+            has_more: { type: boolean }
+
+    Error:
+      type: object
+      description: |
+        Error responses are NOT wrapped in `data`. Branch on `code`, never on the
+        human-readable `message`, which may change without notice.
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+              description: |
+                Stable machine-readable identifier. Generic values are `invalid_request`,
+                `invalid_token`, `forbidden`, `not_found`, `conflict`, `rate_limited`
+                and `service_unavailable`. Endpoints add specific codes such as
+                `invalid_query_param`, `event_type_not_found`, `booking_not_found`,
+                `slot_unavailable`, `field_immutable`, `missing_idempotency_key`,
+                `missing_if_match` and `insufficient_scope`.
+            message: { type: string }
+            details:
+              type: object
+              description: Context for the error, such as the offending field. May be empty.
+              additionalProperties: true
+            request_id: { type: string }
+
+    Me:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            username: { type: [string, "null"] }
+            email: { type: string, format: email }
+            name: { type: [string, "null"] }
+            first_name: { type: [string, "null"] }
+            last_name: { type: [string, "null"] }
+            timezone: { type: [string, "null"] }
+            locale: { type: [string, "null"] }
+            avatar_url: { type: [string, "null"] }
+        organization:
+          type: [object, "null"]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            plan: { type: [string, "null"] }
+
+    EventType:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        duration_minutes: { type: integer }
+        active: { type: boolean }
+        scheduling_type:
+          type: string
+          enum: [individual, group, collective]
+          description: |
+            `collective` is this serializer's label for round robin, where one member of
+            a team is assigned. It is not a separate event kind.
+        hosts:
+          type: array
+          items:
+            type: object
+            properties:
+              user_id: { type: string, format: uuid }
+              username: { type: [string, "null"] }
+              name: { type: [string, "null"] }
+        url: { type: [string, "null"], description: Public booking page. }
+        color: { type: string }
+        buffer_before_minutes: { type: integer }
+        buffer_after_minutes: { type: integer }
+        minimum_notice_hours: { type: integer }
+        future_limit_days: { type: integer }
+        timezone: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    EventTypeDetail:
+      allOf:
+        - $ref: "#/components/schemas/EventType"
+        - type: object
+          properties:
+            locations:
+              type: array
+              items:
+                type: object
+                properties:
+                  type: { type: string }
+                  label: { type: string }
+                  value: { type: [string, "null"] }
+            questions:
+              type: array
+              description: Invitee form questions, in display order.
+              items:
+                type: object
+                properties:
+                  id: { type: string }
+                  key: { type: string }
+                  label: { type: string }
+                  type: { type: string }
+                  required: { type: boolean }
+            max_bookings_per_day: { type: [integer, "null"] }
+            max_bookings_per_week: { type: [integer, "null"] }
+            max_bookings_per_month: { type: [integer, "null"] }
+            requires_confirmation: { type: boolean }
+            allow_reschedule: { type: boolean }
+            allow_cancel: { type: boolean }
+
+    SlotList:
+      type: object
+      properties:
+        event_type_id: { type: string, format: uuid }
+        timezone: { type: string }
+        computed_at:
+          type: string
+          format: date-time
+          description: |
+            When availability was computed. Slots go stale quickly; treat a result older
+            than a minute or two as advisory.
+        slots:
+          type: array
+          items:
+            type: object
+            properties:
+              start: { type: string, format: date-time }
+              end: { type: string, format: date-time }
+              available: { type: boolean, const: true }
+              host_user_id:
+                type: string
+                format: uuid
+                description: Present for round robin, naming the member who would be assigned.
+        truncated:
+          type: boolean
+          description: Present and true when the range produced more slots than are returned. Narrow the range.
+
+    SlotCheck:
+      type: object
+      properties:
+        available: { type: boolean }
+        duration_minutes:
+          type: integer
+          description: Present when available.
+        reason:
+          type: string
+          description: Present when unavailable.
+          enum: [event_type_inactive, in_past, outside_minimum_notice, outside_future_limit, slot_busy]
+        next_available:
+          type: [string, "null"]
+          format: date-time
+          description: Suggested alternative, present when the reason is `slot_busy`.
+
+    Booking:
+      type: object
+      properties:
+        uid: { type: string }
+        version:
+          type: integer
+          description: Incremented on every write. Surfaced as the ETag.
+        event_type_id: { type: string, format: uuid }
+        event_type_slug: { type: [string, "null"] }
+        title: { type: [string, "null"] }
+        status: { type: string }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        timezone: { type: string }
+        host:
+          type: [object, "null"]
+          properties:
+            user_id: { type: string, format: uuid }
+            username: { type: [string, "null"] }
+            email: { type: [string, "null"] }
+        attendees:
+          type: array
+          items:
+            type: object
+            properties:
+              email: { type: string, format: email }
+              name: { type: string }
+              timezone: { type: [string, "null"] }
+        guests:
+          type: array
+          items:
+            type: object
+            properties:
+              email: { type: string, format: email }
+              name: { type: string }
+        location:
+          type: [object, "null"]
+          properties:
+            type: { type: [string, "null"] }
+            url: { type: [string, "null"], description: "Conferencing link, when one was generated." }
+            value: { type: [string, "null"] }
+        metadata:
+          type: [object, "null"]
+          description: Your own key-value data, echoed back unchanged.
+          additionalProperties: true
+        responses:
+          type: [object, "null"]
+          description: |
+            Answers to the invitee form. Populated on single-booking reads; null in list
+            responses, so fetch the booking directly when you need them.
+          additionalProperties: true
+        calendar_sync_status:
+          type: string
+          enum: [synced, pending, failed, not_applicable]
+        calendar_event_id: { type: [string, "null"] }
+        rescheduled_from_uid:
+          type: [string, "null"]
+          description: The booking this one replaced, if it came from a reschedule.
+        cancelled_at:
+          type: [string, "null"]
+          format: date-time
+          description: Note the British spelling of this field name, which is fixed by the contract.
+        cancellation_reason: { type: [string, "null"] }
+        no_show_at: { type: [string, "null"], format: date-time }
+        no_show_reason: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CreateBookingRequest:
+      type: object
+      required: [start, attendee]
+      description: |
+        Identify the event type by `event_type_id`, or by `username` plus `event_slug`.
+        Supplying neither is rejected.
+      properties:
+        event_type_id: { type: string, format: uuid }
+        username: { type: string, maxLength: 127 }
+        event_slug: { type: string, maxLength: 127 }
+        start: { type: string, format: date-time }
+        timezone:
+          type: string
+          maxLength: 64
+          description: IANA timezone the attendee sees times in.
+        attendee:
+          type: object
+          required: [email]
+          properties:
+            email:
+              type: string
+              format: email
+              maxLength: 254
+              description: Must be ASCII and deliverable. Accented local parts are rejected.
+            name: { type: string, maxLength: 255 }
+            first_name: { type: string, maxLength: 127 }
+            last_name: { type: string, maxLength: 127 }
+            phone: { type: string, maxLength: 64 }
+            timezone: { type: string, maxLength: 64 }
+            sms_opt_in: { type: boolean }
+        guests:
+          type: array
+          description: Additional people to copy on the invitation.
+          items: { type: string, format: email }
+        metadata:
+          type: object
+          description: Arbitrary key-value data returned unchanged on reads.
+          additionalProperties: true
+        responses:
+          type: object
+          description: Answers to the event type's invitee questions, keyed by question key.
+          additionalProperties: true
+        utm_source: { type: string, maxLength: 255 }
+        utm_medium: { type: string, maxLength: 255 }
+        utm_campaign: { type: string, maxLength: 255 }
+
+    UpdateBookingRequest:
+      type: object
+      description: |
+        Only these three fields are writable. Including `start`, `end`, `timezone`,
+        `status`, `event_type_id`, `uid` or `version` returns 422 `field_immutable`,
+        naming the offending fields in `details.fields`. To move a booking use
+        `/reschedule`; to cancel it use `/cancel`.
+      properties:
+        metadata:
+          type: object
+          description: |
+            Shallow-merged into existing metadata, not replaced. There is no way to
+            remove a key through this endpoint.
+          additionalProperties: true
+        responses:
+          type: object
+          description: Replaces the stored invitee form answers outright.
+          additionalProperties: true
+        attendee_name:
+          type: string
+          description: Truncated to 200 characters.
+
+    WebhookEventName:
+      type: string
+      description: |
+        Event names as the REST API accepts and returns them. Note these are
+        **underscore** names. The dot-separated form (`booking.created`) appears
+        only on the outbound delivery, in its payload and the
+        `X-42min-Webhook-Event` header. Subscribing with a dot name is rejected
+        with 400.
+      enum:
+        - booking_created
+        - booking_updated
+        - booking_canceled
+        - booking_rescheduled
+        - booking_no_show
+        - event_type_updated
+        - event_type_deleted
+        - routing_form_submitted
+
+    WebhookEventDotName:
+      type: string
+      description: |
+        The same events as they appear on an outbound delivery. Use
+        `WebhookEventName` when talking to the REST API.
+      enum:
+        - booking.created
+        - booking.updated
+        - booking.canceled
+        - booking.rescheduled
+        - booking.no_show
+        - event_type.updated
+        - event_type.deleted
+        - routing.form_submitted
+
+    Webhook:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/WebhookEventName" }
+        status: { type: string }
+        description: { type: [string, "null"] }
+        paused_reason:
+          type: [string, "null"]
+          description: Why we stopped delivering, when a subscription was paused automatically.
+        last_delivery_at: { type: [string, "null"], format: date-time }
+        last_delivery_ok: { type: [boolean, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    WebhookWithSecret:
+      allOf:
+        - $ref: "#/components/schemas/Webhook"
+        - type: object
+          properties:
+            signing_secret:
+              type: string
+              description: |
+                The signing secret, returned only on creation and rotation. It cannot be
+                read back afterwards, and is absent from every other response.
+
+    WebhookDelivery:
+      type: object
+      properties:
+        id: { type: string }
+        event: { $ref: "#/components/schemas/WebhookEventName" }
+        attempt: { type: integer, description: "1 on the first try, incremented on each retry." }
+        status_code:
+          type: [integer, "null"]
+          description: HTTP status your endpoint returned, or null if it was unreachable.
+        error: { type: [string, "null"] }
+        delivered_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }

@@ -22,17 +22,19 @@ Any MCP client can connect without this plugin, by pointing at
 `https://api.42min.us/mcp`. The server publishes OAuth protected-resource metadata, so a
 compliant client discovers everything else on its own.
 
-### `openapi/`
+### `openapi/42min.v1.yaml`
 
 The OpenAPI 3.1 description of the public REST API, for generating clients, importing into
-Postman or Bruno, and feeding to a coding agent. It is validated in CI against the running
-API, so a mismatch between this file and production is a build failure rather than
-something you discover at runtime.
+Postman or Bruno, and feeding to a coding agent.
 
-### `examples/`
+It is hand-written and checked against the running API by a contract test suite that
+exercises every documented endpoint and validates the live response, headers and error
+bodies against these schemas. That is how the first draft's seven mistakes were found,
+including two that would have broken every generated client on every booking write. A
+route-coverage check also fails if an endpoint exists but is undocumented, or the reverse.
 
-Small working programs. Start with the webhook receiver: signature verification is the
-part integrators most often get wrong.
+If you find a place where this file and the API disagree, the file is probably wrong:
+please [open an issue](https://github.com/42min-us/42min-developers/issues/new?labels=specification).
 
 ## Authentication in one paragraph
 

@@ -26,3 +26,5 @@ changing its meaning is a breaking change.
 ## Unreleased
 
 - Initial public repository: Cursor plugin and OpenAPI specification.
+- `openapi/42min.v1.yaml` published: OpenAPI 3.1 covering the six `/v1` resources, both
+  security schemes, the error envelope, pagination, and the eight webhook events.
