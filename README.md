@@ -41,6 +41,16 @@ valid OpenAPI 3.1 document, so a malformed spec never reaches you.
 If you find a place where this file and the API disagree, the file is probably wrong:
 please [open an issue](https://github.com/42min-us/42min-developers/issues/new?labels=specification).
 
+### `mcp/tools.json`
+
+The MCP contract, as a machine-readable snapshot: every tool with its JSON Schema for
+arguments, the scopes it needs, whether it writes, and the annotations a client uses to
+decide when to ask you before calling. Generated from the running tool registry, not
+hand-maintained, and gated by a test that fails when the two disagree.
+
+Read it if you are building a client, or feed it to a coding agent. The table in the
+[plugin README](plugins/42min/README.md) is the human summary of the same thing.
+
 ### `examples/webhook-receiver`
 
 A working receiver in about 120 lines with no dependencies, and ten tests for

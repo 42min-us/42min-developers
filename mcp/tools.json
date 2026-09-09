@@ -1,0 +1,1699 @@
+{
+  "$comment": "Generated from the live MCP tool registry by backend/test-integration/25-mcp-tools-snapshot.int-spec.ts. Do not edit by hand.",
+  "endpoint": "https://api.42min.us/mcp",
+  "transport": "streamable-http",
+  "authorization": "OAuth 2.1; see /.well-known/oauth-protected-resource/mcp",
+  "toolCount": 35,
+  "scopes": [
+    "availability:read",
+    "availability:write",
+    "bookings:cancel",
+    "bookings:create",
+    "bookings:read",
+    "bookings:reschedule",
+    "contacts:read",
+    "event_types:read",
+    "event_types:update",
+    "meetings:read",
+    "meetings:write",
+    "roundtables:read",
+    "roundtables:write",
+    "routing_forms:create",
+    "routing_forms:read",
+    "routing_forms:update",
+    "single_use_links:read",
+    "single_use_links:write",
+    "slots:read",
+    "user:read",
+    "users:read"
+  ],
+  "tools": [
+    {
+      "name": "add_out_of_office",
+      "title": "Add out of office period",
+      "description": "Block a whole-day date range (inclusive) during which the connected user has no bookable slots anywhere — every schedule and event type, and round-robin skips them. Existing confirmed meetings inside the range are NOT canceled; the result reports how many there are so they can be reviewed. Multiple periods may coexist; past periods are cleaned up automatically.",
+      "mutating": true,
+      "requiredScopes": [
+        "availability:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "end_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date"
+        ]
+      }
+    },
+    {
+      "name": "add_schedule_override",
+      "title": "Add schedule date override",
+      "description": "Add or replace a date-specific override on one of the connected user's own availability schedules. Pass intervals: null to fully block the day, or an array of {start, end} HH:MM intervals for special hours. Idempotent: calling this again for the same date replaces the prior override.",
+      "mutating": true,
+      "requiredScopes": [
+        "availability:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "schedule_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "intervals": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "start": {
+                      "type": "string",
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    },
+                    "end": {
+                      "type": "string",
+                      "pattern": "^(([01]\\d|2[0-3]):[0-5]\\d|24:00)$"
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "end"
+                  ]
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schedule_id",
+          "date",
+          "intervals"
+        ]
+      }
+    },
+    {
+      "name": "cancel_booking",
+      "title": "Cancel booking",
+      "description": "Cancel a booking by uid. Notifies the attendee and removes the calendar event. Idempotent: canceling an already-canceled booking returns its current state and finishes any incomplete cleanup. For group events this cancels THIS booking only — one attendee's registration, not the whole session.",
+      "mutating": true,
+      "requiredScopes": [
+        "bookings:cancel"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "uid"
+        ]
+      }
+    },
+    {
+      "name": "check_slot",
+      "title": "Check slot availability",
+      "description": "Check whether one specific start time is bookable for an event type.",
+      "mutating": false,
+      "requiredScopes": [
+        "slots:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "timezone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_type",
+          "start"
+        ]
+      }
+    },
+    {
+      "name": "create_booking",
+      "title": "Create booking",
+      "description": "Book a meeting for an attendee at a start time on any active event type in the organization (public-page parity). Verify the slot with check_slot first. Pass the same idempotency_key when retrying. Note: a booking created on a colleague's or team event type cannot later be retrieved or canceled through MCP (same limitation as the public booking page — the attendee manages it via the emailed reschedule/cancel links), but a retry of this call still replays the settled result including the booking uid.",
+      "mutating": true,
+      "requiredScopes": [
+        "bookings:create"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "event_type": {
+            "description": "Event type UUID or \"username/event-slug\"",
+            "type": "string",
+            "minLength": 1
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "attendee": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email",
+                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "first_name": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "last_name": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "phone": {
+                "type": "string",
+                "maxLength": 50
+              },
+              "timezone": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "email"
+            ]
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "guests": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "email",
+              "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            }
+          },
+          "responses": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "event_type",
+          "start",
+          "attendee"
+        ]
+      }
+    },
+    {
+      "name": "create_roundtable",
+      "title": "Create roundtable",
+      "description": "Create a DRAFT group scheduling poll (roundtable) on one of your event types, with 1-20 candidate time slots and — for access_mode \"invitees\" — up to 50 email participants. Drafts send NO emails and place NO calendar holds; voting starts only when publish_roundtable is called. Pass the same idempotency_key when retrying.",
+      "mutating": true,
+      "requiredScopes": [
+        "roundtables:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "event_type_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "slots": {
+            "minItems": 1,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start_time": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+                }
+              },
+              "required": [
+                "start_time"
+              ]
+            }
+          },
+          "access_mode": {
+            "default": "public_link",
+            "type": "string",
+            "enum": [
+              "public_link",
+              "invitees"
+            ]
+          },
+          "participants": {
+            "description": "Required (min 1) when access_mode is \"invitees\"; omit for \"public_link\"",
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "email": {
+                  "type": "string",
+                  "maxLength": 255,
+                  "format": "email",
+                  "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                },
+                "is_required": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "email"
+              ]
+            }
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "voting_type": {
+            "type": "string",
+            "enum": [
+              "blind",
+              "open"
+            ]
+          },
+          "allow_maybe": {
+            "type": "boolean"
+          },
+          "auto_book": {
+            "type": "boolean"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "event_type_id",
+          "name",
+          "slots"
+        ]
+      }
+    },
+    {
+      "name": "create_single_use_links",
+      "title": "Create single-use booking links",
+      "description": "Generate one-time booking links (quantity 1-10) for an event type you manage, returning shareable URLs. Each link can be used for exactly one booking. The link is hosted by the event type's owner. Pass the same idempotency_key when retrying so a retry never mints a duplicate batch.",
+      "mutating": true,
+      "requiredScopes": [
+        "single_use_links:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "event_type_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "quantity": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "event_type_id"
+        ]
+      }
+    },
+    {
+      "name": "delete_out_of_office",
+      "title": "Delete out of office period",
+      "description": "Delete one of the connected user's out of office periods by id (ids come from get_schedules or add_out_of_office). The affected days become bookable again immediately.",
+      "mutating": true,
+      "requiredScopes": [
+        "availability:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "out_of_office_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          }
+        },
+        "required": [
+          "out_of_office_id"
+        ]
+      }
+    },
+    {
+      "name": "delete_single_use_link",
+      "title": "Delete single-use link",
+      "description": "Delete an unused single-use booking link so it can no longer be used to book. Applies to links of event types you manage.",
+      "mutating": true,
+      "requiredScopes": [
+        "single_use_links:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "link_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          }
+        },
+        "required": [
+          "link_id"
+        ]
+      }
+    },
+    {
+      "name": "duplicate_routing_form",
+      "title": "Duplicate routing form",
+      "description": "Copy a routing form, including its questions and rules — the copied rules keep working on the copy, and destinations are copied as is. The copy is created INACTIVE and owned by you, gets its own URL slug, has no responses, and counts against the organization's routing-form limit. Pass the same idempotency_key when retrying so a retry never creates a second copy.",
+      "mutating": true,
+      "requiredScopes": [
+        "routing_forms:create"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "routing_form_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "routing_form_id"
+        ]
+      }
+    },
+    {
+      "name": "evaluate_routing_form",
+      "title": "Test routing (dry run)",
+      "description": "Answer with question_ids from get_routing_form (values as strings, numbers, booleans or null — numbers as numbers, e.g. 0, exactly as the public form sends them; checkboxes as arrays of those; answers payload up to 64 K characters in total). Nothing is saved, no notifications, webhooks or CRM syncs fire. Works on inactive forms so you can test before turning one on — public_submit_blockers tells you what would still stop a real submission. The trace is paged: follow next_trace_offset; restart from 0 if the form was edited between calls. matched_rule.position is null when the matching rule falls outside the trace page you were given — page further to see it, and never assume a position that is not reported. A trace entry too large to fit a page is returned as { omitted: true } with its rule_id and position, so paging still advances.",
+      "mutating": false,
+      "requiredScopes": [
+        "routing_forms:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "routing_form_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "answers": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "question_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 2000
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "question_id",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "trace_offset": {
+            "default": 0,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "stage": {
+            "default": "submit",
+            "type": "string",
+            "enum": [
+              "page_load",
+              "submit"
+            ]
+          },
+          "skip_prefix": {
+            "default": false,
+            "type": "boolean"
+          },
+          "context": {
+            "type": "object",
+            "properties": {
+              "language": {
+                "type": "string",
+                "maxLength": 16
+              },
+              "timezone": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "country": {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              },
+              "device": {
+                "type": "string",
+                "enum": [
+                  "phone",
+                  "tablet",
+                  "desktop"
+                ]
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "utm": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 255
+                }
+              },
+              "params": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 255
+                }
+              },
+              "browser_referrer": {
+                "type": "string",
+                "maxLength": 500
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "routing_form_id"
+        ]
+      }
+    },
+    {
+      "name": "find_available_slots",
+      "title": "Find available slots",
+      "description": "Open booking slots for an event type over a date range (max 31 days). Output is UTC ISO, capped at 200 slots.",
+      "mutating": false,
+      "requiredScopes": [
+        "slots:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "timezone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_type",
+          "start"
+        ]
+      }
+    },
+    {
+      "name": "get_booking",
+      "title": "Get booking",
+      "description": "One booking by uid, including labeled form responses (answers to since-deleted questions are omitted), routing form answers, location/conferencing URL, and no-show status.",
+      "mutating": false,
+      "requiredScopes": [
+        "bookings:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          }
+        },
+        "required": [
+          "uid"
+        ]
+      }
+    },
+    {
+      "name": "get_contact",
+      "title": "Get contact",
+      "description": "One contact plus their full meeting history (capped, most recent first).",
+      "mutating": false,
+      "requiredScopes": [
+        "contacts:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "contact_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          }
+        },
+        "required": [
+          "contact_id"
+        ]
+      }
+    },
+    {
+      "name": "get_event_type",
+      "title": "Get event type",
+      "description": "Full detail for one event type (duration, location, questions, limits) by UUID or \"username/slug\".",
+      "mutating": false,
+      "requiredScopes": [
+        "event_types:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "event_type"
+        ]
+      }
+    },
+    {
+      "name": "get_me",
+      "title": "Get my profile",
+      "description": "The connected user's profile (name, username, timezone, locale) plus their organization and MCP role.",
+      "mutating": false,
+      "requiredScopes": [
+        "user:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_roundtable",
+      "title": "Get roundtable",
+      "description": "Full poll state for one roundtable: candidate slots, participants, per-slot vote tallies, and confirmed booking.",
+      "mutating": false,
+      "requiredScopes": [
+        "roundtables:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "roundtable_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          }
+        },
+        "required": [
+          "roundtable_id"
+        ]
+      }
+    },
+    {
+      "name": "get_routing_form",
+      "title": "Get routing form",
+      "description": "The full definition of one routing form: its questions (question_id is what list_routing_responses answer filters and evaluate_routing_form answers use) and its rules. Rules are evaluated top-to-bottom, first match wins, and the fallback fires when nothing matched. Questions and rules are paged together: pass next_page back to continue — nothing is repeated — and omit page to restart if the form was edited. A question with a very long option list reports options_total alongside the options it carries; an item too large to fit a page at all is returned as { omitted: true } with its id, so paging still advances. A condition carrying question_lookup_skipped was not checked against the current questions — its question_id: null means \"not looked up\", never \"deleted\".",
+      "mutating": false,
+      "requiredScopes": [
+        "routing_forms:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "routing_form_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "page": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "routing_form_id"
+        ]
+      }
+    },
+    {
+      "name": "get_routing_form_stats",
+      "title": "Routing form funnel",
+      "description": "One call for 'how is this form converting / where do leads land'. Use matched_rule_id / has_booking on list_routing_responses to drill in. by_rule is paged: follow next_rules_offset; restart from 0 if the form was edited between calls.",
+      "mutating": false,
+      "requiredScopes": [
+        "routing_forms:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "routing_form_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "rules_offset": {
+            "default": 0,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "routing_form_id"
+        ]
+      }
+    },
+    {
+      "name": "get_routing_response",
+      "title": "Get one routing form response",
+      "description": "The full record for one response — every stored answer entry (current questions, UUID keys whose question no longer exists or never did, and any other stored key) with its raw value where the value is a primitive or list, a bounded JSON preview otherwise; UTM and tracking params; linked booking. list_routing_responses rows are previews. Answers are paged: follow next_answers_offset; restart from 0 if the form was edited between calls. Pathologically long checkbox lists, escaping-heavy text and non-primitive values are cut or previewed, and always flagged.",
+      "mutating": false,
+      "requiredScopes": [
+        "routing_forms:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "response_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "answers_offset": {
+            "default": 0,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740791
+          }
+        },
+        "required": [
+          "response_id"
+        ]
+      }
+    },
+    {
+      "name": "get_schedules",
+      "title": "Get availability schedules",
+      "description": "The connected user's own availability schedules (weekly intervals). Pass schedule_id for one schedule's date overrides. The no-argument form also returns the user's out of office periods (whole-day away ranges).",
+      "mutating": false,
+      "requiredScopes": [
+        "availability:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "schedule_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          }
+        }
+      }
+    },
+    {
+      "name": "list_bookings",
+      "title": "List bookings",
+      "description": "List bookings with filters (status, date range, event type, attendee email, host). host_user_ids (array) supersedes host_user_id. Set include_responses for labeled invitee form answers per booking. Cursor-paginated.",
+      "mutating": false,
+      "requiredScopes": [
+        "bookings:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "confirmed",
+                "canceled",
+                "rescheduled"
+              ]
+            }
+          },
+          "event_type_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "host_user_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "host_user_ids": {
+            "minItems": 1,
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+            }
+          },
+          "attendee_email": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "start_at_asc",
+              "start_at_desc",
+              "created_at_desc",
+              "updated_at_asc",
+              "updated_at_desc"
+            ]
+          },
+          "include_responses": {
+            "default": false,
+            "type": "boolean"
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "cursor": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "list_event_types",
+      "title": "List event types",
+      "description": "List bookable meeting templates (event types), optionally filtered by active status, host user, or slug. Cursor-paginated.",
+      "mutating": false,
+      "requiredScopes": [
+        "event_types:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "cursor": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "list_meetings",
+      "title": "List meetings",
+      "description": "Host-side meetings view (upcoming/past/date range), with status, event type, and host filters (host_user_ids array supersedes host_user_id). Page-based.",
+      "mutating": false,
+      "requiredScopes": [
+        "meetings:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tab": {
+            "default": "upcoming",
+            "type": "string",
+            "enum": [
+              "upcoming",
+              "past",
+              "range"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "canceled",
+              "rescheduled",
+              "no_show"
+            ]
+          },
+          "event_type_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "host_user_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "host_user_ids": {
+            "minItems": 1,
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+            }
+          },
+          "date_from": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "date_to": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "page": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      }
+    },
+    {
+      "name": "list_roundtables",
+      "title": "List roundtables",
+      "description": "List group scheduling polls (roundtables) with status, vote counts, and confirmed time. Newest first, capped at 50.",
+      "mutating": false,
+      "requiredScopes": [
+        "roundtables:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_routing_forms",
+      "title": "List routing forms",
+      "description": "List the lead-qualification routing forms you can access, newest first, with their public URL, status and question/rule/response counts. Use routing_form_id with get_routing_form, list_routing_responses, get_routing_form_stats and evaluate_routing_form; pass next_cursor to continue.",
+      "mutating": false,
+      "requiredScopes": [
+        "routing_forms:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "default": 50,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      }
+    },
+    {
+      "name": "list_routing_responses",
+      "title": "List routing form responses (previews)",
+      "description": "Lead-qualification submissions for one routing form: what each lead answered, which rule matched, where they were sent, and the booking they made if any. Rows are previews — the first 10 answers, shortened; call get_routing_response for the expanded answer values, UTM and tracking params. Filter by date range (to is exclusive), destination type, matched rule, whether a booking happened, or by answers: dropdown/radio match exactly, checkboxes match any of the values you list, number takes {min, max}, and text-like questions match a case-insensitive substring. Pass next_cursor to continue.",
+      "mutating": false,
+      "requiredScopes": [
+        "routing_forms:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "routing_form_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "destination_type": {
+            "type": "string",
+            "enum": [
+              "event_type",
+              "external_url",
+              "custom_message",
+              "routing_form"
+            ]
+          },
+          "matched_rule_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "has_booking": {
+            "type": "boolean"
+          },
+          "answer_filters": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "question_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    {
+                      "minItems": 1,
+                      "maxItems": 20,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "min": {
+                          "type": "number"
+                        },
+                        "max": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "question_id",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "routing_form_id"
+        ]
+      }
+    },
+    {
+      "name": "list_single_use_links",
+      "title": "List single-use booking links",
+      "description": "List one-time booking links with created/booked/expired status. Page-based.",
+      "mutating": false,
+      "requiredScopes": [
+        "single_use_links:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "event_type_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "booked",
+              "expired"
+            ]
+          },
+          "page": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      }
+    },
+    {
+      "name": "list_users",
+      "title": "List organization members",
+      "description": "List organization members (id, name, email, username, role, status, timezone). Use the returned user_id values in the host_user_id / host_user_ids filters of list_bookings and list_meetings. Page-based.",
+      "mutating": false,
+      "requiredScopes": [
+        "users:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "search": {
+            "type": "string"
+          },
+          "include_deactivated": {
+            "default": false,
+            "type": "boolean"
+          },
+          "page": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "limit": {
+            "default": 50,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      }
+    },
+    {
+      "name": "publish_roundtable",
+      "title": "Publish roundtable",
+      "description": "Publish a draft roundtable: opens voting, immediately emails every invited participant (invitees mode), and places tentative calendar holds on all candidate slots on the host calendar. This cannot be undone via MCP. Confirm with the user before calling.",
+      "mutating": true,
+      "requiredScopes": [
+        "roundtables:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "roundtable_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          }
+        },
+        "required": [
+          "roundtable_id"
+        ]
+      }
+    },
+    {
+      "name": "reschedule_booking",
+      "title": "Reschedule booking",
+      "description": "Move a booking to a new start time. Verify the new slot with check_slot first; if this fails with slot_unavailable, call find_available_slots and offer alternatives. Pass the same idempotency_key when retrying.",
+      "mutating": true,
+      "requiredScopes": [
+        "bookings:reschedule"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-]\\d{2}:\\d{2})))$"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "uid",
+          "start"
+        ]
+      }
+    },
+    {
+      "name": "search_contacts",
+      "title": "Search contacts",
+      "description": "Search contacts by name/email, with meeting counts and tags. Page-based.",
+      "mutating": false,
+      "requiredScopes": [
+        "contacts:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "search": {
+            "type": "string"
+          },
+          "sort_by": {
+            "type": "string",
+            "enum": [
+              "name",
+              "email",
+              "created_at"
+            ]
+          },
+          "page": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      }
+    },
+    {
+      "name": "set_event_type_status",
+      "title": "Turn event type on/off",
+      "description": "Turn a bookable event type on or off. Turning it off immediately stops new public bookings. Idempotent: setting it to the state it is already in returns the current state with no change and no notification re-sent.",
+      "mutating": true,
+      "requiredScopes": [
+        "event_types:update"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "event_type_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "event_type_id",
+          "active"
+        ]
+      }
+    },
+    {
+      "name": "set_meeting_no_show",
+      "title": "Mark/unmark meeting no-show",
+      "description": "Mark or unmark a past, confirmed meeting as a no-show. Idempotent: setting it to the state it is already in returns the current state with no change and no notification re-sent.",
+      "mutating": true,
+      "requiredScopes": [
+        "meetings:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "no_show": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "uid",
+          "no_show"
+        ]
+      }
+    },
+    {
+      "name": "set_routing_form_status",
+      "title": "Turn routing form on/off",
+      "description": "Turn a routing form on or off. Turning it off makes the public form page unavailable (404) and stops new submissions immediately; forms that chain into it will send leads to a dead page — check with get_routing_form on the parent. Idempotent. Returns the form summary; call get_routing_form for questions and rules.",
+      "mutating": true,
+      "requiredScopes": [
+        "routing_forms:update"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "routing_form_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "routing_form_id",
+          "active"
+        ]
+      }
+    }
+  ]
+}

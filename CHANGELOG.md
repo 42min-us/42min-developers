@@ -32,3 +32,5 @@ changing its meaning is a breaking change.
   browser tooling and coding agents can load it directly.
 - `examples/webhook-receiver`: a dependency-free receiver with correct signature
   verification, replay rejection, retry-safe dedupe and ten tests.
+- `mcp/tools.json`: the MCP tool contract as a generated, drift-gated snapshot. Every
+  tool with its argument schema, required scopes, mutation flag and client annotations.
