@@ -1,0 +1,19 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "us.42min/meetings",
+  "title": "42min",
+  "description": "Scheduling for AI assistants: bookings, availability, meeting polls and routing forms.",
+  "version": "0.1.0",
+  "websiteUrl": "https://42min.us/help/api",
+  "repository": {
+    "url": "https://github.com/42min-us/42min-developers",
+    "source": "github",
+    "id": "1360767907"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.42min.us/mcp"
+    }
+  ]
+}

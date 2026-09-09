@@ -41,6 +41,12 @@ valid OpenAPI 3.1 document, so a malformed spec never reaches you.
 If you find a place where this file and the API disagree, the file is probably wrong:
 please [open an issue](https://github.com/42min-us/42min-developers/issues/new?labels=specification).
 
+### `server.json`
+
+The [official MCP Registry](https://modelcontextprotocol.io/registry/remote-servers) entry.
+Declares this as a remote server on streamable HTTP at `https://api.42min.us/mcp`, so
+registry-backed directories can list it without anyone hand-filling a form.
+
 ### `mcp/tools.json`
 
 The MCP contract, as a machine-readable snapshot: every tool with its JSON Schema for
