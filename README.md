@@ -64,6 +64,13 @@ A working receiver in about 120 lines with no dependencies, and ten tests for
 verifying a re-serialized body rather than the raw bytes, which no amount of reading the
 docs makes obvious. Copy `verify.js` and move on.
 
+## Built on this API
+
+- **[n8n community node](https://github.com/42min-us/n8n-nodes-42min)** (`n8n-nodes-42min`).
+  Bookings, event types, slots and the current user, plus a trigger for every webhook
+  event with signature verification built in. Runs inside your own n8n, so booking data
+  goes from 42min to your server and nowhere else.
+
 ## Authentication in one paragraph
 
 Two mechanisms. **OAuth 2.1** with PKCE for applications acting on behalf of a user,
