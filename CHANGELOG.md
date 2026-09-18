@@ -25,6 +25,23 @@ changing its meaning is a breaking change.
 
 ## Unreleased
 
+- **Recurring meeting series.** Eight new endpoints under `/v1/series`: list, get,
+  create, update, pause, resume, end, and change host, governed by two new scopes,
+  `series:read` and `series:write`. Bookings that belong to a series now carry
+  `series_id` and `series_index`, in REST responses and in webhook deliveries, and
+  `GET /v1/bookings` accepts a `series_id` filter.
+- **Eight MCP tools for recurring series**: `list_recurring`, `get_recurring`,
+  `create_recurring`, `update_recurring`, `pause_recurring`, `resume_recurring`,
+  `end_recurring` and `change_recurring_host`, bringing the server to 43 tools. The
+  `mcp:scheduling:read` and `mcp:scheduling:write` aliases now include the series
+  scopes, so existing OAuth connections pick them up on their next grant.
+- `GET /v1/event-types/{idOrSlug}` is now described correctly: it takes a UUID, or
+  `username/event_slug` sent as one path segment with the slash percent-encoded
+  (`ada%2Fintro-call`). A bare slug is a 400, which the operation now declares.
+- The attendee `phone` and `sms_opt_in` fields on booking creation are documented:
+  opting into text messages needs a phone number in international format, otherwise
+  the request is rejected with `attendee_phone_required` or `attendee_phone_invalid`.
+
 - Initial public repository: Cursor plugin and OpenAPI specification.
 - `openapi/42min.v1.yaml` published: OpenAPI 3.1 covering the six `/v1` resources, both
   security schemes, the error envelope, pagination, and the eight webhook events.

@@ -3,7 +3,7 @@
   "endpoint": "https://api.42min.us/mcp",
   "transport": "streamable-http",
   "authorization": "OAuth 2.1; see /.well-known/oauth-protected-resource/mcp",
-  "toolCount": 35,
+  "toolCount": 43,
   "scopes": [
     "availability:read",
     "availability:write",
@@ -21,6 +21,8 @@
     "routing_forms:create",
     "routing_forms:read",
     "routing_forms:update",
+    "series:read",
+    "series:write",
     "single_use_links:read",
     "single_use_links:write",
     "slots:read",
@@ -154,6 +156,41 @@
         },
         "required": [
           "uid"
+        ]
+      }
+    },
+    {
+      "name": "change_recurring_host",
+      "title": "Change recurring series host",
+      "description": "Move a recurring series and every upcoming occurrence to a different host. The new host must be one you may manage and must be able to host the event type. The run stops at the first occurrence it cannot move, and the series host is left alone unless every one of them was moved.",
+      "mutating": true,
+      "requiredScopes": [
+        "series:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "series_uid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "host_user_id": {
+            "description": "The new host",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          }
+        },
+        "required": [
+          "series_uid",
+          "host_user_id"
         ]
       }
     },
@@ -306,6 +343,139 @@
           "event_type",
           "start",
           "attendee"
+        ]
+      }
+    },
+    {
+      "name": "create_recurring",
+      "title": "Create recurring series",
+      "description": "Create a recurring meeting series: one attendee, one host, one repeating pattern, booked as a run of ordinary meetings. The event type must allow recurring bookings. Dates the host is not free on are skipped and reported, and the walk keeps going until it has \"count\" meetings or runs out of room. Pass the same idempotency_key when retrying.",
+      "mutating": true,
+      "requiredScopes": [
+        "series:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "host_user_id": {
+            "description": "Whose calendar the series is booked on",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "event_type": {
+            "description": "Event type UUID or \"username/event-slug\"",
+            "type": "string",
+            "minLength": 1
+          },
+          "attendee": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email",
+                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "first_name": {
+                "type": "string",
+                "maxLength": 127
+              },
+              "last_name": {
+                "type": "string",
+                "maxLength": 127
+              },
+              "phone": {
+                "type": "string",
+                "maxLength": 50
+              }
+            },
+            "required": [
+              "email"
+            ]
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "weekly",
+              "monthly_same_day"
+            ]
+          },
+          "interval_weeks": {
+            "description": "Weekly only; defaults to 1",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          },
+          "weekdays": {
+            "description": "Weekly only, for example [\"mon\",\"wed\"]",
+            "minItems": 1,
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "sun",
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat"
+              ]
+            }
+          },
+          "time": {
+            "description": "Wall clock in the series timezone",
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "timezone": {
+            "description": "IANA zone; defaults to the host timezone",
+            "type": "string",
+            "maxLength": 64
+          },
+          "starts_on": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 42
+          },
+          "location_url": {
+            "description": "One fixed link for every occurrence",
+            "type": "string",
+            "maxLength": 500,
+            "pattern": "^https?:\\/\\/"
+          },
+          "notify_invitee": {
+            "type": "boolean"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "host_user_id",
+          "event_type",
+          "attendee",
+          "frequency",
+          "time",
+          "starts_on",
+          "count"
         ]
       }
     },
@@ -554,6 +724,34 @@
         },
         "required": [
           "routing_form_id"
+        ]
+      }
+    },
+    {
+      "name": "end_recurring",
+      "title": "End recurring series",
+      "description": "End a recurring series for good: every upcoming occurrence is canceled, the attendee is told once, and nothing is owed or rescheduled. Past meetings are untouched. Safe to repeat: a second call cancels anything the first did not reach.",
+      "mutating": true,
+      "requiredScopes": [
+        "series:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "series_uid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          }
+        },
+        "required": [
+          "series_uid"
         ]
       }
     },
@@ -860,6 +1058,34 @@
       }
     },
     {
+      "name": "get_recurring",
+      "title": "Get recurring series",
+      "description": "One recurring series by uid, with its repeat pattern, host, attendee, status, and the next four occurrences. An occurrence marked moved was rescheduled on its own and no longer follows the pattern. Use expected_revision from the \"version\" field when calling resume_recurring or update_recurring.",
+      "mutating": false,
+      "requiredScopes": [
+        "series:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "series_uid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          }
+        },
+        "required": [
+          "series_uid"
+        ]
+      }
+    },
+    {
       "name": "get_roundtable",
       "title": "Get roundtable",
       "description": "Full poll state for one roundtable: candidate slots, participants, per-slot vote tallies, and confirmed booking.",
@@ -1024,7 +1250,7 @@
     {
       "name": "list_bookings",
       "title": "List bookings",
-      "description": "List bookings with filters (status, date range, event type, attendee email, host). host_user_ids (array) supersedes host_user_id. Set include_responses for labeled invitee form answers per booking. Cursor-paginated.",
+      "description": "List bookings with filters (status, date range, event type, attendee email, host). host_user_ids (array) supersedes host_user_id. series_id narrows to one recurring series, whose occurrences are ordinary bookings. Set include_responses for labeled invitee form answers per booking. Cursor-paginated.",
       "mutating": false,
       "requiredScopes": [
         "bookings:read"
@@ -1050,6 +1276,11 @@
             }
           },
           "event_type_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "series_id": {
             "type": "string",
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
@@ -1224,6 +1455,58 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 50
+          }
+        }
+      }
+    },
+    {
+      "name": "list_recurring",
+      "title": "List recurring series",
+      "description": "Lists recurring meeting series (each is one attendee, one host, one repeating pattern). Narrowed to the hosts you can see: a user sees their own, a manager their groups, an admin the organization. Occurrences are ordinary bookings; list them with list_bookings and the series uid.",
+      "mutating": false,
+      "requiredScopes": [
+        "series:read"
+      ],
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "host_user_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "event_type": {
+            "description": "Event type UUID or \"username/event-slug\"",
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "description": "Defaults to active and paused",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "active",
+                "paused",
+                "ended"
+              ]
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
           }
         }
       }
@@ -1483,6 +1766,34 @@
       }
     },
     {
+      "name": "pause_recurring",
+      "title": "Pause recurring series",
+      "description": "Pause a recurring series: every upcoming occurrence is canceled and held, and the attendee keeps the same number of meetings owed. resume_recurring reschedules the held ones onto the next free dates. Safe to repeat: a second call holds anything the first did not reach.",
+      "mutating": true,
+      "requiredScopes": [
+        "series:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "series_uid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          }
+        },
+        "required": [
+          "series_uid"
+        ]
+      }
+    },
+    {
       "name": "publish_roundtable",
       "title": "Publish roundtable",
       "description": "Publish a draft roundtable: opens voting, immediately emails every invited participant (invitees mode), and places tentative calendar holds on all candidate slots on the host calendar. This cannot be undone via MCP. Confirm with the user before calling.",
@@ -1549,6 +1860,41 @@
         "required": [
           "uid",
           "start"
+        ]
+      }
+    },
+    {
+      "name": "resume_recurring",
+      "title": "Resume recurring series",
+      "description": "Resume a paused series: one replacement meeting is booked for each held occurrence, on the pattern's next free dates, and an upcoming meeting off those dates is moved onto them. Pass expected_revision, the \"version\" field from get_recurring, and the call is refused if the series changed since you read it. Any occurrence still owed leaves the series paused, and calling this again with the current version finishes it.",
+      "mutating": true,
+      "requiredScopes": [
+        "series:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "series_uid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "expected_revision": {
+            "description": "The \"version\" field from get_recurring",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "series_uid",
+          "expected_revision"
         ]
       }
     },
@@ -1692,6 +2038,83 @@
         "required": [
           "routing_form_id",
           "active"
+        ]
+      }
+    },
+    {
+      "name": "update_recurring",
+      "title": "Update recurring series",
+      "description": "Change a recurring series: its repeat pattern, its fixed link, or whether the attendee is notified. A pattern change (frequency, interval_weeks, weekdays, time) rebuilds the upcoming occurrences onto the new pattern's next dates: ones already on those dates stay, the others are rebooked, and the round is reported here, with zero counts when nothing had to move. A location_url or notify_invitee change leaves the dates alone. Pass expected_revision, the \"version\" field from get_recurring. Only the fields you send are changed.",
+      "mutating": true,
+      "requiredScopes": [
+        "series:write"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "series_uid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$"
+          },
+          "expected_revision": {
+            "description": "The \"version\" field from get_recurring",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "frequency": {
+            "type": "string",
+            "enum": [
+              "weekly",
+              "monthly_same_day"
+            ]
+          },
+          "interval_weeks": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          },
+          "weekdays": {
+            "minItems": 1,
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "sun",
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat"
+              ]
+            }
+          },
+          "time": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "location_url": {
+            "description": "Replaces the fixed link the series already has. A series created without one cannot gain one here.",
+            "type": "string",
+            "maxLength": 500,
+            "pattern": "^https?:\\/\\/"
+          },
+          "notify_invitee": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "series_uid",
+          "expected_revision"
         ]
       }
     }

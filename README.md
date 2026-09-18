@@ -16,7 +16,7 @@ it. The product itself is closed source.
 ### `plugins/42min`
 
 The 42min plugin for Cursor. Connects the editor's agent to your 42min account over OAuth
-and exposes 35 scheduling tools. See its [README](plugins/42min/README.md).
+and exposes 43 scheduling tools. See its [README](plugins/42min/README.md).
 
 Any MCP client can connect without this plugin, by pointing at
 `https://api.42min.us/mcp`. The server publishes OAuth protected-resource metadata, so a

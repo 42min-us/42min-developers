@@ -54,7 +54,7 @@ scoped to `:read` only. Minting a token requires the Admin role.
 
 ## Tools
 
-The server exposes **35 tools**. Write tools are marked; everything else is read-only.
+The server exposes **43 tools**. Write tools are marked; everything else is read-only.
 
 ### Profile
 
@@ -93,7 +93,7 @@ The server exposes **35 tools**. Write tools are marked; everything else is read
 | `cancel_booking` *(write)* | Cancel a booking by uid. |
 | `create_booking` *(write)* | Book a meeting for an attendee at a start time on any active event type in the organization (public-page parity). |
 | `get_booking` | One booking by uid, including labeled form responses (answers to since-deleted questions are omitted), routing form answers, location/conferencing URL, and no-show status. |
-| `list_bookings` | List bookings with filters (status, date range, event type, attendee email, host). host_user_ids (array) supersedes host_user_id. |
+| `list_bookings` | List bookings with filters (status, date range, event type, attendee email, host). |
 | `reschedule_booking` *(write)* | Move a booking to a new start time. |
 
 ### Meetings
@@ -102,6 +102,19 @@ The server exposes **35 tools**. Write tools are marked; everything else is read
 |---|---|
 | `list_meetings` | Host-side meetings view (upcoming/past/date range), with status, event type, and host filters (host_user_ids array supersedes host_user_id). |
 | `set_meeting_no_show` *(write)* | Mark or unmark a past, confirmed meeting as a no-show. |
+
+### Recurring meetings
+
+| Tool | What it does |
+|---|---|
+| `change_recurring_host` *(write)* | Move a recurring series and every upcoming occurrence to a different host. |
+| `create_recurring` *(write)* | Create a recurring meeting series: one attendee, one host, one repeating pattern, booked as a run of ordinary meetings. |
+| `end_recurring` *(write)* | End a recurring series for good: every upcoming occurrence is canceled, the attendee is told once, and nothing is owed or rescheduled. |
+| `get_recurring` | One recurring series by uid, with its repeat pattern, host, attendee, status, and the next four occurrences. |
+| `list_recurring` | Lists recurring meeting series (each is one attendee, one host, one repeating pattern). |
+| `pause_recurring` *(write)* | Pause a recurring series: every upcoming occurrence is canceled and held, and the attendee keeps the same number of meetings owed. resume_recurring reschedules the held ones onto the next free dates. |
+| `resume_recurring` *(write)* | Resume a paused series: one replacement meeting is booked for each held occurrence, on the pattern's next free dates, and an upcoming meeting off those dates is moved onto them. |
+| `update_recurring` *(write)* | Change a recurring series: its repeat pattern, its fixed link, or whether the attendee is notified. |
 
 ### Contacts
 
