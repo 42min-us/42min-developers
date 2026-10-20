@@ -76,15 +76,19 @@ docs makes obvious. Copy `verify.js` and move on.
 Two mechanisms. **OAuth 2.1** with PKCE for applications acting on behalf of a user,
 including Dynamic Client Registration, so a client can register itself without a support
 ticket. **Personal access tokens** for scripts acting as one person. Both carry scopes;
-the API refuses anything a token's scopes do not cover. Discovery documents live at
-`/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource`.
+the API refuses anything a token's scopes do not cover. A token acts as its user: it sees
+and changes exactly what that member can in 42min, so an app connected by a regular user
+reaches that user's bookings, and one connected by an admin the whole organization.
+Discovery documents live at `/.well-known/oauth-authorization-server` and
+`/.well-known/oauth-protected-resource`.
 
 Full detail: [Authentication](https://42min.us/help/api/authentication).
 
 ## Things worth knowing before you build
 
 - **Mutating booking calls accept `Idempotency-Key`.** Retry with the same key. A new key
-  creates a second booking.
+  creates a second booking. A key belongs to the user behind the token and to one
+  endpoint.
 - **`PATCH /v1/bookings/{uid}` uses ETags.** Read the ETag, send it back as `If-Match`, and
   a concurrent edit fails loudly instead of silently overwriting.
 - **There is no test environment yet.** Write operations act on production: they send

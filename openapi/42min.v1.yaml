@@ -17,6 +17,11 @@ info:
 
     **No sandbox.** Write operations act on production. Creating a booking sends real
     email and writes to a real calendar. Test against event types you own.
+
+    **A token acts as its user.** Bookings are visible and editable exactly as they are
+    for the member who authorized the app or created the token: a user sees the bookings
+    they host, a manager those of the groups they manage, an admin or owner the whole
+    organization. A booking outside that scope is reported as not found.
   contact:
     name: 42min developers
     url: https://github.com/42min-us/42min-developers
@@ -990,8 +995,11 @@ paths:
       operationId: listWebhooks
       summary: List your webhook subscriptions
       description: |
-        Scoped to the credential that created them: an OAuth client sees only its own
-        subscriptions, and a personal access token only its own.
+        Scoped to the member and the credential that created them: an OAuth client sees
+        only the subscriptions the current user made with it, and a personal access token
+        only its own. A subscription delivers
+        what the member who created it may see: their own bookings, their groups' for a
+        manager, the whole organization for an admin or owner.
       security:
         - oauth2: [webhooks:read]
         - personalAccessToken: [webhooks:read]
@@ -1371,8 +1379,8 @@ components:
             meetings:read: Read the host-side meetings view
             meetings:write: Modify meetings
             contacts:read: Read contacts
-            single_use_links:read: Read single-use booking links
-            single_use_links:write: Create and delete single-use booking links
+            single_use_links:read: Read secret links
+            single_use_links:write: Create and delete secret links
             roundtables:read: Read meeting polls
             roundtables:write: Manage meeting polls
             routing_forms:read: Read routing forms and responses
@@ -1411,7 +1419,9 @@ components:
 
         Retrying with the same key replays the original result rather than acting twice.
         A different key means a different operation, so a retry with a fresh key creates
-        a second booking.
+        a second booking. A key belongs to the user behind the token and to one endpoint:
+        another member reusing it, or the same key sent to another endpoint, is a new
+        request, never a replay.
       schema: { type: string, maxLength: 255 }
     BookingUid:
       name: uid
@@ -1674,7 +1684,7 @@ components:
           properties:
             id: { type: string, format: uuid }
             username: { type: [string, "null"] }
-            email: { type: string, format: email }
+            email: { type: string, format: email, description: "The address can change; use the id to identify a user." }
             name: { type: [string, "null"] }
             first_name: { type: [string, "null"] }
             last_name: { type: [string, "null"] }
@@ -1752,9 +1762,50 @@ components:
             max_bookings_per_day: { type: [integer, "null"] }
             max_bookings_per_week: { type: [integer, "null"] }
             max_bookings_per_month: { type: [integer, "null"] }
-            requires_confirmation: { type: boolean }
+            requires_confirmation:
+              type: boolean
+              description: |
+                True when an approval rule is active on this event type's public booking page:
+                a booking made there may become a request that the host approves or declines
+                before it is confirmed. A given booking may still be confirmed at once, and
+                bookings created through this API or MCP are always confirmed at once. The
+                rule's conditions are not exposed.
             allow_reschedule: { type: boolean }
             allow_cancel: { type: boolean }
+            payment:
+              oneOf:
+                - $ref: "#/components/schemas/EventTypePayment"
+                - type: "null"
+              readOnly: true
+              description: |
+                The price this event type charges, or null when it does not require payment.
+                Collected on the public booking page only: bookings created through this API
+                or MCP are confirmed at once and unpaid. Read-only; the payment settings of an
+                event type cannot be changed through the API.
+
+    EventTypePayment:
+      type: object
+      readOnly: true
+      required: [provider, amount, currency]
+      properties:
+        provider: { type: string, description: "The payment provider id, for example `stripe`." }
+        amount: { type: integer, description: "The price in the currency's ISO 4217 minor unit (15000 is $150.00; 5000 JPY is 5000)." }
+        currency: { type: string, description: "Lowercase ISO 4217 code." }
+
+    PaymentSummary:
+      type: object
+      required: [provider, status, amount, currency, amount_refunded, paid_at, receipt_url]
+      properties:
+        provider: { type: string }
+        status:
+          type: string
+          enum: [paid, partially_refunded, refunded]
+          description: Derived from the amount refunded; a disputed payment keeps its status.
+        amount: { type: integer, description: "ISO 4217 minor units." }
+        currency: { type: string, description: "Lowercase ISO 4217 code." }
+        amount_refunded: { type: integer, description: "ISO 4217 minor units; the provider's absolute figure." }
+        paid_at: { type: [string, "null"], format: date-time }
+        receipt_url: { type: [string, "null"], description: "The provider's receipt page; Stripe's expires after 30 days." }
 
     SlotList:
       type: object
@@ -1823,7 +1874,7 @@ components:
           properties:
             user_id: { type: string, format: uuid }
             username: { type: [string, "null"] }
-            email: { type: [string, "null"] }
+            email: { type: [string, "null"], description: "The address can change; use the id to identify a user." }
         attendees:
           type: array
           items:
@@ -1878,6 +1929,13 @@ components:
         series_index:
           type: [integer, "null"]
           description: 0-based position of this booking in its series, or null.
+        payment:
+          oneOf:
+            - $ref: "#/components/schemas/PaymentSummary"
+            - type: "null"
+          description: |
+            The payment collected for this booking on the public booking page, or null for
+            an unpaid booking. Bookings created through this API or MCP are never paid.
 
     CreateBookingRequest:
       type: object
@@ -1995,7 +2053,7 @@ components:
           properties:
             user_id: { type: string, format: uuid }
             username: { type: [string, "null"] }
-            email: { type: string }
+            email: { type: string, description: "The address can change; use the id to identify a user." }
         attendee:
           type: object
           required: [name, email]
@@ -2340,7 +2398,10 @@ components:
           type: object
           description: |
             Tracking and custom parameters the booking link carried, merged into one
-            map. Recognized tracking keys win over a custom key of the same name.
+            map. Recognized tracking keys win over a custom key of the same name. The
+            recognized tracking keys are `utm_source`, `utm_medium`, `utm_campaign`,
+            `utm_term`, `utm_content`, `gclid`, `gbraid`, `wbraid`, `fbclid`, `msclkid`,
+            `ttclid`, `li_fat_id` and `referrer`.
           additionalProperties: true
         location: { type: [string, "null"] }
         meetLink:
@@ -2367,13 +2428,18 @@ components:
         series_index:
           type: [integer, "null"]
           description: 0-based position of this booking in its series, or null.
+        payment:
+          oneOf:
+            - $ref: "#/components/schemas/PaymentSummary"
+            - type: "null"
+          description: The same object as the REST `Booking.payment`, snake_case among camelCase siblings, fixed by the contract.
         hostUser:
           type: [object, "null"]
           properties:
             id: { type: [string, "null"] }
             firstName: { type: [string, "null"] }
             lastName: { type: [string, "null"] }
-            email: { type: [string, "null"] }
+            email: { type: [string, "null"], description: "The address can change; use the id to identify a user." }
         organizationId: { type: string, format: uuid }
 
     BookingWebhookEnvelope:

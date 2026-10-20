@@ -25,6 +25,32 @@ changing its meaning is a breaking change.
 
 ## Unreleased
 
+- **A token acts as its user.** Since 2026-10-20, `/v1/bookings` returns and changes
+  exactly what the member behind the token can see in 42min: a user the bookings they
+  host, a manager those of the groups they manage, an admin or owner the whole
+  organization. A booking outside that scope is reported as `booking_not_found`.
+  Before this, every token read the whole organization. An app connected by an admin
+  sees no difference; one connected by a regular user now sees that user's bookings.
+- **`Idempotency-Key` is per user and per endpoint.** A key reused by another member
+  of the same organization, or sent to another endpoint, is a new request rather than
+  a replay of the first response.
+- **Webhook subscriptions belong to the member who created them.** Two members who
+  connected the same OAuth app no longer see or change each other's subscriptions, and
+  a subscription delivers only the bookings its creator may see, by the same rule as
+  the token above.
+- **Payments.** Event types carry a read-only `payment` (provider, amount in minor
+  units, currency) when the public booking page charges, and bookings carry a
+  `payment` summary (status, amounts, receipt) in REST responses and in webhook
+  deliveries. Bookings created through this API or MCP are never paid.
+- `requires_confirmation` on an event type is described: an approval rule on the public
+  booking page may turn a booking into a request the host approves; bookings created
+  through this API or MCP are always confirmed at once.
+- The recognized tracking keys in a booking's `urlParams` are listed in the webhook
+  payload description.
+- "Single-use links" are now called **secret links** in scope descriptions and MCP tool
+  titles. Scope names, tool names and arguments are unchanged.
+- The user `email` fields note that an address can change; identify a user by `id`.
+
 - **Recurring meeting series.** Eight new endpoints under `/v1/series`: list, get,
   create, update, pause, resume, end, and change host, governed by two new scopes,
   `series:read` and `series:write`. Bookings that belong to a series now carry

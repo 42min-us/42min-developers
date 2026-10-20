@@ -596,8 +596,8 @@
     },
     {
       "name": "create_single_use_links",
-      "title": "Create single-use booking links",
-      "description": "Generate one-time booking links (quantity 1-10) for an event type you manage, returning shareable URLs. Each link can be used for exactly one booking. The link is hosted by the event type's owner. Pass the same idempotency_key when retrying so a retry never mints a duplicate batch.",
+      "title": "Create secret links",
+      "description": "Generate secret links (one-time booking links, quantity 1-10) for an event type you manage, returning shareable URLs. Each link can be used for exactly one booking. The link is hosted by the event type's owner. Pass the same idempotency_key when retrying so a retry never mints a duplicate batch.",
       "mutating": true,
       "requiredScopes": [
         "single_use_links:write"
@@ -668,8 +668,8 @@
     },
     {
       "name": "delete_single_use_link",
-      "title": "Delete single-use link",
-      "description": "Delete an unused single-use booking link so it can no longer be used to book. Applies to links of event types you manage.",
+      "title": "Delete secret link",
+      "description": "Delete an unused secret link so it can no longer be used to book. Applies to links of event types you manage.",
       "mutating": true,
       "requiredScopes": [
         "single_use_links:write"
@@ -1683,8 +1683,8 @@
     },
     {
       "name": "list_single_use_links",
-      "title": "List single-use booking links",
-      "description": "List one-time booking links with created/booked/expired status. Page-based.",
+      "title": "List secret links",
+      "description": "List secret links (one-time booking links) with created/booked/expired status. Page-based.",
       "mutating": false,
       "requiredScopes": [
         "single_use_links:read"
