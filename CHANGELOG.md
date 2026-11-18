@@ -25,6 +25,17 @@ changing its meaning is a breaking change.
 
 ## Unreleased
 
+- **Event types can offer several durations.** An event type lists every length it
+  offers in `duration_options` (shortest first, always including the default
+  `duration_minutes`). `GET /v1/slots`, `POST /v1/bookings` and
+  `POST /v1/bookings/{uid}/reschedule` take an optional `duration_minutes`; a length the
+  event type does not offer answers `duration_not_offered`. Bookings and series report
+  their own `duration_minutes`. The MCP tools `find_available_slots`, `check_slot`,
+  `create_booking` and `reschedule_booking` take the same argument.
+- **A booking keeps its own length.** A reschedule without `duration_minutes` keeps the
+  booking's length, where it used to take the event type's current duration. Group
+  bookings still take the event type's duration. In MCP meeting results,
+  `event_type.duration_minutes` is now the meeting's own length.
 - **A token acts as its user.** Since 2026-10-20, `/v1/bookings` returns and changes
   exactly what the member behind the token can see in 42min: a user the bookings they
   host, a manager those of the groups they manage, an admin or owner the whole

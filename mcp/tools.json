@@ -222,6 +222,12 @@
           },
           "timezone": {
             "type": "string"
+          },
+          "duration_minutes": {
+            "description": "Length in minutes; defaults to the event type's default.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
           }
         },
         "required": [
@@ -332,6 +338,12 @@
               "type": "string"
             },
             "additionalProperties": {}
+          },
+          "duration_minutes": {
+            "description": "Length in minutes; defaults to the event type's default (booking) or the booking's own length (reschedule).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
           },
           "idempotency_key": {
             "type": "string",
@@ -946,6 +958,12 @@
           },
           "timezone": {
             "type": "string"
+          },
+          "duration_minutes": {
+            "description": "Length in minutes; defaults to the event type's default.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
           }
         },
         "required": [
@@ -1384,7 +1402,7 @@
     {
       "name": "list_meetings",
       "title": "List meetings",
-      "description": "Host-side meetings view (upcoming/past/date range), with status, event type, and host filters (host_user_ids array supersedes host_user_id). Page-based.",
+      "description": "Host-side meetings view (upcoming/past/date range), with status, event type, and host filters (host_user_ids array supersedes host_user_id). Page-based. event_type.location_type is the meeting's own location: the one the invitee picked when the event type offers several.",
       "mutating": false,
       "requiredScopes": [
         "meetings:read"
@@ -1850,6 +1868,12 @@
           },
           "timezone": {
             "type": "string"
+          },
+          "duration_minutes": {
+            "description": "Length in minutes; omit to keep the booking's own length. A Group booking always uses the event type's duration.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
           },
           "idempotency_key": {
             "type": "string",

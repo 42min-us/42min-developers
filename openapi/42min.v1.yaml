@@ -248,6 +248,13 @@ paths:
           in: query
           description: IANA timezone the slots are computed for.
           schema: { type: string, examples: ["Europe/Lisbon"] }
+        - name: duration_minutes
+          in: query
+          description: |
+            Length in minutes (integer, 1 to 1440). Slots are computed for that length;
+            defaults to the event type's default length. Event types list the lengths they
+            offer in `duration_options`.
+          schema: { type: integer, minimum: 1, maximum: 1440 }
       responses:
         "200":
           description: Computed availability.
@@ -297,7 +304,9 @@ paths:
           schema: { type: string, format: date-time }
         - name: end
           in: query
-          description: Defaults to start plus the event type's duration.
+          description: |
+            Defaults to start plus the event type's default duration. To check another length,
+            send `end`; a suggested `next_available` fits the length between `start` and `end`.
           schema: { type: string, format: date-time }
         - name: timezone
           in: query
@@ -612,6 +621,16 @@ paths:
                   description: New start time, ISO 8601.
                 timezone: { type: string }
                 reason: { type: string, maxLength: 1024 }
+                duration_minutes:
+                  type: integer
+                  minimum: 1
+                  maximum: 1440
+                  description: |
+                    New length in minutes. When omitted, the booking keeps its own length. Must be
+                    one of the event type's `duration_options` or the booking's current length, else
+                    `duration_not_offered`. Exception: a Group booking always uses the event type's
+                    duration. Omission uses it, and any other value (even the booking's own earlier
+                    length) is `duration_not_offered`.
       responses:
         "200":
           description: Rescheduled.
@@ -1660,7 +1679,7 @@ components:
                 `invalid_token`, `forbidden`, `not_found`, `conflict`, `rate_limited`
                 and `service_unavailable`. Endpoints add specific codes such as
                 `invalid_query_param`, `event_type_not_found`, `booking_not_found`,
-                `slot_unavailable`, `field_immutable`, `missing_idempotency_key`,
+                `slot_unavailable`, `duration_not_offered`, `field_immutable`, `missing_idempotency_key`,
                 `missing_if_match` and `insufficient_scope`.
             message: { type: string }
             details:
@@ -1709,7 +1728,11 @@ components:
         slug: { type: string }
         title: { type: string }
         description: { type: [string, "null"] }
-        duration_minutes: { type: integer }
+        duration_minutes: { type: integer, description: The default length. }
+        duration_options:
+          type: array
+          items: { type: integer }
+          description: Every length the event type offers, shortest first, always including the default. One entry when it offers a single length.
         active: { type: boolean }
         scheduling_type:
           type: string
@@ -1742,6 +1765,10 @@ components:
           properties:
             locations:
               type: array
+              description: |
+                Every location the event type offers, in order: one to five, each type at most
+                once. The first is the default: a booking made through this API takes it, and
+                the booking page preselects it. Invitees pick one of the others on the booking page.
               items:
                 type: object
                 properties:
@@ -1868,6 +1895,9 @@ components:
         status: { type: string }
         start_at: { type: string, format: date-time }
         end_at: { type: string, format: date-time }
+        duration_minutes:
+          type: integer
+          description: The booked length in minutes (end_at minus start_at). Each booking keeps its own length.
         timezone: { type: string }
         host:
           type: [object, "null"]
@@ -1893,9 +1923,16 @@ components:
         location:
           type: [object, "null"]
           properties:
-            type: { type: [string, "null"] }
+            type:
+              type: [string, "null"]
+              description: |
+                The booking's own location type: the one the invitee picked when the event type
+                offered several, otherwise the event type's first location. Two bookings of one
+                event type can differ.
             url: { type: [string, "null"], description: "Conferencing link, when one was generated." }
-            value: { type: [string, "null"] }
+            value:
+              type: [string, "null"]
+              description: The booking's location (an address, a phone number, a link or the invitee's answer), when it has one.
         metadata:
           type: [object, "null"]
           description: Your own key-value data, echoed back unchanged.
@@ -1948,6 +1985,13 @@ components:
         username: { type: string, maxLength: 127 }
         event_slug: { type: string, maxLength: 127 }
         start: { type: string, format: date-time }
+        duration_minutes:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          description: |
+            Length in minutes. When omitted, the event type's default length is booked. Must be one
+            of the event type's `duration_options`, else `duration_not_offered`.
         timezone:
           type: string
           maxLength: 64
@@ -2074,6 +2118,9 @@ components:
         time:
           type: string
           description: Wall clock in `timezone`, `HH:MM` on a 24-hour clock.
+        duration_minutes:
+          type: integer
+          description: The length of each occurrence in minutes; the event type's default when the series never chose one.
         timezone: { type: string }
         starts_on:
           type: string
