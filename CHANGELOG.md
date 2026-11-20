@@ -25,6 +25,17 @@ changing its meaning is a breaking change.
 
 ## Unreleased
 
+- **A round-robin event type can use each host's own video app.** An event type's
+  `locations` can now contain the type `host_video`. It appears only on a round-robin
+  team event type, and then as its only location: every host meets in their own app
+  (Google Meet, Microsoft Teams or Zoom). A booking never reports `host_video`. Its
+  `location.type` is the real app of the host it was assigned to (`zoom`, `google_meet`
+  or `microsoft_teams`), so two bookings of one event type can differ. A booking made
+  before its event type was switched to `host_video` keeps its earlier location. A
+  booking keeps its app when its host changes: a change of host to someone without
+  that app is refused, and a series host change reports it as `host_calendar_required`.
+  Clients that validate the location type against a fixed list need to accept the new
+  value. MCP event type results carry it too.
 - **Event types can offer several durations.** An event type lists every length it
   offers in `duration_options` (shortest first, always including the default
   `duration_minutes`). `GET /v1/slots`, `POST /v1/bookings` and

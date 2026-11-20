@@ -1769,6 +1769,11 @@ components:
                 Every location the event type offers, in order: one to five, each type at most
                 once. The first is the default: a booking made through this API takes it, and
                 the booking page preselects it. Invitees pick one of the others on the booking page.
+                The type `host_video` ("each host's video app") appears only on a round-robin team
+                event type, and then as its only location: each host uses their own video app (Google
+                Meet, Microsoft Teams or Zoom), and a booking reports the real app of the host it was
+                assigned to, never `host_video`. Bookings made before an event type was switched to
+                `host_video` keep their earlier location.
               items:
                 type: object
                 properties:
@@ -1928,7 +1933,10 @@ components:
               description: |
                 The booking's own location type: the one the invitee picked when the event type
                 offered several, otherwise the event type's first location. Two bookings of one
-                event type can differ.
+                event type can differ. For an event type whose location is `host_video` it is the
+                real video app of the booking's host (`zoom`, `google_meet` or `microsoft_teams`) for a booking
+                created while the event type was `host_video`. A booking made before the event type was
+                switched to `host_video` keeps its earlier location type.
             url: { type: [string, "null"], description: "Conferencing link, when one was generated." }
             value:
               type: [string, "null"]
@@ -2234,7 +2242,8 @@ components:
             - `host_not_eligible`: the new host is not an active user of this
               organization.
             - `host_calendar_required`: the new host has no writable calendar of the
-              provider this event type's meeting link needs.
+              provider this event type's meeting link needs, or does not have the video app
+              this meeting uses.
             - `host_already_booked`: the new host already has another meeting at that
               occurrence's time. An ordinary scheduling conflict, not a fault of ours;
               pick a different host or time for it and repeat the call.

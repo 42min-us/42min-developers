@@ -1031,7 +1031,7 @@
     {
       "name": "get_event_type",
       "title": "Get event type",
-      "description": "Full detail for one event type (duration, location, questions, limits) by UUID or \"username/slug\".",
+      "description": "Full detail for one event type (duration, location, questions, limits) by UUID or \"username/slug\". A round-robin team event type can have the location host_video: each host uses their own video app, and a booking reports the real app.",
       "mutating": false,
       "requiredScopes": [
         "event_types:read"
