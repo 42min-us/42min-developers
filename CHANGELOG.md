@@ -36,6 +36,14 @@ changing its meaning is a breaking change.
   that app is refused, and a series host change reports it as `host_calendar_required`.
   Clients that validate the location type against a fixed list need to accept the new
   value. MCP event type results carry it too.
+- **An event type's booking window can be a fixed date range.** Event types report
+  `date_range_type`: `rolling` (bookable `future_limit_days` from now, as before) or
+  `fixed` (bookable only on the calendar days from `date_range_start` to
+  `date_range_end`, inclusive, in the event type's schedule time zone). A null
+  `date_range_start` means from today. With `fixed`, `future_limit_days` is not applied.
+  The three fields are read only. `GET /v1/slots` lists only times inside the range, and
+  the slot check answers `outside_future_limit` for a time on either side of it. MCP
+  event type results carry the same fields.
 - **Event types can offer several durations.** An event type lists every length it
   offers in `duration_options` (shortest first, always including the default
   `duration_minutes`). `GET /v1/slots`, `POST /v1/bookings` and

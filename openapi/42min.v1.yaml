@@ -1753,7 +1753,24 @@ components:
         buffer_before_minutes: { type: integer }
         buffer_after_minutes: { type: integer }
         minimum_notice_hours: { type: integer }
-        future_limit_days: { type: integer }
+        future_limit_days:
+          type: integer
+          description: Rolling limit, in days from now. Not applied when `date_range_type` is `fixed`.
+        date_range_type:
+          type: string
+          enum: [rolling, fixed]
+          description: >-
+            How far ahead invitees can book. `rolling`: `future_limit_days` from now. `fixed`: only the
+            calendar days from `date_range_start` to `date_range_end`, inclusive, in the event type's
+            schedule time zone.
+        date_range_start:
+          type: [string, "null"]
+          format: date
+          description: First bookable day of a fixed range. Null means from today.
+        date_range_end:
+          type: [string, "null"]
+          format: date
+          description: Last bookable day of a fixed range.
         timezone: { type: [string, "null"] }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
